@@ -1,0 +1,588 @@
+/* =========================================================
+   LS HUD — skin layer (шинэ pill загвар)
+   style.css-ийн ДАРАА ачаална. script.js-ийн бүх hook
+   (data-key, .bar-fill, .sp-*, --hud-scale, --mm-*) хэвээр.
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800;900&display=swap');
+
+:root {
+    --bg: transparent;
+    --bg-soft: transparent;
+    --border: transparent;
+    --shadow: none;
+    --radius: 1rem;
+
+    /* HUD-ийн үндсэн зөөлөн хар шил */
+    --pill-bg: rgba(20, 22, 20, 0.60);
+    --pill-bg-soft: rgba(20, 22, 20, 0.50);
+    --pill-shadow: 0 0.1875rem 0.75rem rgba(0, 0, 0, 0.40);
+
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.55);
+    --ink: #141614;                 /* цагаан дүүргэлт дээрх бичиг */
+
+    --accent: #c67139;              /* terracotta */
+    --accent-2: #7a8a5e;            /* sage */
+    --warn: #e0644a;
+    --info: #8fa4c4;
+
+    --c-health: #ffffff;
+    --c-armor: #ffffff;
+    --c-hunger: #c67139;
+    --c-thirst: #7a8a5e;
+    --c-stress: #a4799c;
+    --c-stamina: #c67139;
+    --c-voice: rgba(255, 255, 255, 0.85);
+    --c-voice-on: #9db072;
+    --c-engine: #8fa4c4;
+
+    --font-body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+    --font-num: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+    font-family: var(--font-body);
+    color: var(--text);
+}
+
+/* Хуучин хүрээ / карт бүрийг тунгалаг болгоно (шинэ pill-үүд өөрсдөө дэвсгэртэй) */
+.info-wrap,
+.street-wrap,
+.speedo-wrap .sp,
+.bike-body,
+.moto-body,
+.av-panel,
+.ev-card {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Хуучин minimap-ийн хүрээ ба гудамжны нэр / компас — шинэ загварт хэрэггүй */
+.status-frame,
+.street-wrap { display: none !important; }
+
+@keyframes auBlink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0.15 } }
+@keyframes hudTalk { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+
+/* =========================================================
+   STATUS — зүүн доод: voice тойрог + HEALTH/HUNGER, ARMOR/THIRST
+   ========================================================= */
+.status-wrap {
+    left: calc(var(--safe-x) + 1.75rem) !important;
+    right: auto !important;
+    bottom: calc(var(--safe-y) + 1.75rem) !important;
+    max-width: none !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 1rem !important;
+}
+
+.status-wrap .pill-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+/* style.css-ийн `.status-circle svg` нь тойргийн ринг svg-д зориулж
+   rotate(-90deg) өгдөг. Pill болон микрофоны дүрсний svg-үүд тэр
+   ринг биш тул эргэлтийг нь ЗААВАЛ цуцлана — эс бөгөөс хажуу тийшээ
+   хэвтэж харагдана. (.icon svg дээр аль хэдийн ийм дүрэм байсан.) */
+.status-circle .pill-ico,
+.status-circle .voice-ico { transform: none; }
+
+/* ---- Микрофон — Toxic HUD-аас портлосон дөрвөлжин хүрээ ----
+   Тойргийн оронд бага зэрэг мэлийсэн дөрвөлжин, нимгэн хүрээтэй,
+   зурмал (stroke) дүрстэй. Ярих үед хүрээ ба дүрс LS HUD-ийн
+   үндсэн өнгө (--accent) болж тодорно. */
+.status-circle.voice {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: var(--pill-bg);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.09);
+    box-shadow: var(--pill-shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    transition: border-color 0.12s ease;
+}
+.status-circle.voice .voice-ico {
+    width: 1.0625rem;
+    height: 1.0625rem;
+    color: var(--text-dim);
+    transition: color 0.12s ease;
+}
+.status-circle.voice.talking { border-color: var(--accent); }
+.status-circle.voice.talking .voice-ico { color: var(--accent); }
+.voice-range {
+    background: rgba(20, 22, 20, 0.85) !important;
+    color: #fff !important;
+    border: none !important;
+    font-weight: 800;
+}
+
+/* ---- Pill бар (HEALTH / ARMOR) ---- */
+/* Өндөр нь 50% нарийсгасан (3.25rem -> 1.625rem). Өргөн хэвээр.
+   Дотор дахь дүрс / бичгийг ч багасгаж багтаалаа. */
+.status-circle.pill {
+    position: relative;
+    width: 12.5rem;
+    height: 1.625rem;
+    border-radius: 999px;
+    background: var(--pill-bg);
+    box-shadow: var(--pill-shadow);
+    overflow: hidden;
+}
+.status-circle.pill svg.ring,
+.status-circle.pill > svg:not(.pill-ico) { display: none; }
+
+.status-circle.pill .bar-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.status-circle.pill .bar-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 100%;
+    border-radius: 999px;
+    background: #ffffff;
+    overflow: hidden;
+    transition: width 0.3s ease;
+}
+
+/* Хоёр давхар шошго: track дээр цагаан, дүүргэлт дотор хар —
+   хэдэн хувь ч байсан бичиг үргэлж уншигдана. */
+.status-circle.pill .pill-face {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 12.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4375rem;
+    padding-left: 0.75rem;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.status-circle.pill .pill-face span {
+    font-size: 0.9375rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.status-circle.pill .pill-ico { width: 1.125rem; height: 1.125rem; }
+.status-circle.pill .on-track { color: #ffffff; z-index: 1; }
+.status-circle.pill .on-fill  { color: var(--ink); z-index: 2; }
+
+/* ---- Жижиг pill (HUNGER / THIRST) ---- */
+/* Жижиг pill-ийг ч 50% нарийсгасан (1.875rem -> 0.9375rem) */
+.status-circle.pill.mini {
+    width: 8.25rem;
+    height: 0.9375rem;
+    box-shadow: 0 0.125rem 0.5625rem rgba(0, 0, 0, 0.35);
+}
+.status-circle.pill.mini .pill-face {
+    width: 8.25rem;
+    gap: 0.3125rem;
+    padding-left: 0.5rem;
+}
+.status-circle.pill.mini .pill-face span { font-size: 0.5625rem; letter-spacing: 0.14em; }
+.status-circle.pill.mini .pill-ico { width: 0.6875rem; height: 0.6875rem; }
+.status-circle.pill.mini[data-key="hunger"] .bar-fill { background: var(--c-hunger); }
+.status-circle.pill.mini[data-key="thirst"] .bar-fill { background: var(--c-thirst); }
+.status-circle.pill.mini[data-key="stamina"] .bar-fill { background: var(--c-stamina); }
+.status-circle.pill.mini[data-key="stress"]  .bar-fill { background: var(--c-stress); }
+
+/* Бага үлдэгдлийн анхааруулга */
+.status-circle.pill.low .bar-fill { background: var(--warn); }
+
+/* =========================================================
+   INFO (зүүн дээд) — ID / цаг / ажил / бэлэн мөнгө / банк
+   ========================================================= */
+.info-wrap { gap: 0.5625rem; text-shadow: 0 0.125rem 0.4375rem rgba(0, 0, 0, 0.6); }
+.info-chip {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    gap: 0.5rem;
+    font-size: 1.0625rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: #fff;
+}
+.info-chip + .info-chip { margin-left: 1.25rem; }
+.info-chip .mini { opacity: 1; fill: rgba(255, 255, 255, 0.65); }
+.info-chip.cash .mini, .info-chip.bank .mini { fill: var(--accent-2); }
+.info-chip.cash span:last-child,
+.info-chip.bank span:last-child { color: var(--accent-2); }
+.info-chip .dot { background: var(--accent-2) !important; box-shadow: 0 0 0.5rem var(--accent-2); }
+.info-chip.grade, #info-grade { font-size: 1.1875rem; font-weight: 800; color: #fff; }
+#info-job {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.875rem;
+    font-weight: 900;
+    color: var(--accent);
+}
+.info-chip.wide .mini { fill: var(--accent); }
+.info-chip.bank .mini { fill: var(--accent-2); }
+
+/* =========================================================
+   SPEEDOMETER — баруун доод. Бүх загвар нэг өнгө зүстэй:
+   хар шил карт, цагаан тоо, terracotta RPM, sage FUEL,
+   хөх-саарал ENGINE.
+   ========================================================= */
+.speedo-wrap .sp { position: relative; }
+
+/* Заагч гэрлүүд (бүслүүр / хөдөлгүүр / гэрэл / түлш) */
+.sp .tells-row { display: flex; gap: 0.625rem; justify-content: flex-end; margin-bottom: 0.75rem; }
+.sp .tells-row .ico {
+    width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--pill-bg); box-shadow: var(--pill-shadow);
+}
+.sp .tells-row .ico svg { width: 1.1875rem; height: 1.1875rem; fill: rgba(255, 255, 255, 0.28); }
+.sp .tells-row .sp-beam.on svg { fill: var(--accent-2); }
+.sp .tells-row .sp-beam.high svg { fill: var(--info); }
+.sp .tells-row .sp-engine.on svg { fill: var(--accent-2); }
+.sp .tells-row .sp-belt.on svg,
+.sp .tells-row .sp-engine.off svg,
+.sp .tells-row .sp-fuel-ico.low svg { fill: var(--warn); animation: auBlink 1s steps(1, end) infinite; }
+
+/* ---- Хөдөлгүүрийн эвдрэл — картын доторх сүүлийн зураас ----
+   ЧУХАЛ: markup дээр энэ элемент `class="dmg status-circle"` гэж бичигдсэн
+   тул style.css-ийн `.status-circle` дүрмээс 2.875rem өндөр ӨВЛӨНӨ. Тэр
+   өндөр нь доторх шошго + зураасны бодит өндрөөс (~1.5rem) хамаагүй том
+   учир absolute байрлалтай хайрцаг дээшээ сунаж, FUEL зураас дээр давхарлаж
+   байв. width-ийг доор дарж бичсэн ч height-ийг дарж бичээгүй байсан нь
+   алдааны шалтгаан. */
+.speedo-wrap .sp > .dmg {
+    position: absolute;
+    right: 1.75rem;
+    bottom: 1.25rem;
+    width: 11.875rem;
+    height: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3125rem;
+    pointer-events: none;
+}
+.speedo-wrap .sp > .dmg .dmg-lbl {
+    font-size: 0.6875rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    color: var(--text-dim);
+}
+.speedo-wrap .sp > .dmg .bar-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+.speedo-wrap .sp > .dmg .bar-fill {
+    width: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--c-engine);
+    transition: width 0.3s ease, background 0.3s ease;
+}
+.speedo-wrap .sp > .dmg.low .bar-fill { background: var(--warn); animation: auBlink 1s steps(1, end) infinite; }
+.speedo-wrap .sp > .dmg.low .dmg-lbl { color: var(--warn); }
+
+.sp-petrol, .sp-diesel, .sp-heli { transform: scale(var(--sp-fit, 1)); transform-origin: bottom right; }
+
+/* ---- PETROL: том тоо + баруун багана ---- */
+.sp-petrol .pt-main {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    padding: 1.125rem 1.75rem 1.25rem;
+    border-radius: 2rem;
+    background: var(--pill-bg);
+    box-shadow: 0 0.375rem 1.375rem rgba(0, 0, 0, 0.45);
+}
+.sp-petrol .pt-speedwrap { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.sp-petrol .pt-speed { font-size: 4.75rem; line-height: 0.82; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+.sp-petrol .pt-unit { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.24em; color: rgba(255, 255, 255, 0.62); }
+/* padding-bottom нь доор absolute байрлах ENG зураасанд зай нөөцөлнө.
+   2.375rem нь хүрэлцэхгүй байсан (ENG хайрцаг ~1.64rem + bottom 1.25rem
+   = 2.89rem) тул FUEL зураас дээр давхарлаж байв. sp-diesel-тэй ижил
+   3.25rem болгов. */
+.sp-petrol .pt-side { display: flex; flex-direction: column; gap: 0.625rem; width: 11.875rem; padding-bottom: 3.25rem; }
+.sp-petrol .pt-gear {
+    align-self: flex-start; padding: 0.25rem 0.875rem 0.3125rem; border-radius: 999px;
+    background: #ffffff; color: var(--ink);
+    font-size: 0.9375rem; font-weight: 900; letter-spacing: 0.06em;
+}
+.sp-petrol .pt-cap { font-size: 0.6875rem; font-weight: 900; letter-spacing: 0.16em; color: var(--text-dim); }
+.sp-petrol .pt-bar { width: 100%; height: 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.sp-petrol .pt-bar .sp-rpm-bar { height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.1s linear; }
+.sp-petrol .pt-bar .sp-fuel-bar { height: 100%; border-radius: 999px; background: var(--accent-2); transition: width 0.4s ease; }
+
+/* ---- DIESEL ---- */
+.sp-diesel .ds-plate {
+    display: flex; flex-direction: column; gap: 0.5rem; width: 21rem;
+    padding: 1.125rem 1.75rem 3.25rem;
+    border-radius: 2rem;
+    background: var(--pill-bg);
+    box-shadow: 0 0.375rem 1.375rem rgba(0, 0, 0, 0.45);
+}
+.sp-diesel .ds-top { display: flex; align-items: center; justify-content: space-between; }
+.sp-diesel .ds-badge {
+    padding: 0.1875rem 0.75rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 900;
+    letter-spacing: 0.18em; background: rgba(122, 138, 94, 0.3); color: #dfe6cf;
+}
+.sp-diesel .ds-gear {
+    padding: 0.25rem 0.875rem 0.3125rem; border-radius: 999px; font-size: 0.9375rem; font-weight: 900;
+    letter-spacing: 0.06em; background: #ffffff; color: var(--ink);
+}
+.sp-diesel .ds-speedrow { display: flex; align-items: baseline; gap: 0.625rem; }
+.sp-diesel .ds-speed { font-size: 4rem; line-height: 0.9; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+.sp-diesel .ds-unit { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.22em; color: var(--text-dim); }
+.sp-diesel .ds-cap { font-size: 0.6875rem; font-weight: 900; letter-spacing: 0.16em; color: var(--text-dim); }
+.sp-diesel .ds-rpm {
+    position: relative; width: 100%; height: 0.625rem; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18); overflow: hidden;
+}
+.sp-diesel .ds-rpm .sp-rpm-bar { height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.1s linear; }
+.sp-diesel .ds-mark { position: absolute; top: 0; bottom: 0; left: 45%; width: 0.125rem; background: var(--warn); opacity: 0.75; }
+.sp-diesel .ds-fuelrow { display: flex; align-items: center; gap: 0.625rem; }
+.sp-diesel .ds-fuel { flex: 1; height: 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.sp-diesel .ds-fuel .sp-fuel-bar { height: 100%; border-radius: 999px; background: var(--accent-2); transition: width 0.4s ease; }
+.sp-diesel > .dmg { right: 1.75rem; bottom: 1.25rem; width: 12rem; }
+
+/* ---- HELI: ротор ring ---- */
+.sp-heli { position: relative; width: 15rem; height: 15rem; }
+.sp-heli .he-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sp-heli .he-ring circle { fill: none; stroke-linecap: round; }
+.sp-heli .he-track { stroke: rgba(255, 255, 255, 0.16); stroke-width: 8; }
+.sp-heli .sp-rpm-ring { stroke-width: 8; transition: stroke-dasharray 0.12s linear; }
+.sp-heli .he-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.0625rem;
+}
+.sp-heli .he-cap { font-size: 0.625rem; font-weight: 900; letter-spacing: 0.18em; color: var(--text-dim); }
+.sp-heli .he-speed { font-size: 3.25rem; line-height: 0.9; font-weight: 900; color: #fff; }
+.sp-heli .he-unit { font-size: 0.6875rem; font-weight: 900; letter-spacing: 0.2em; color: var(--text-dim); }
+.sp-heli .he-alt {
+    margin-top: 0.375rem; padding: 0.1875rem 0.75rem; border-radius: 999px;
+    background: rgba(143, 164, 196, 0.28); color: #dce5f2;
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em;
+}
+.sp-heli .he-foot {
+    position: absolute; left: 50%; bottom: 0.75rem; width: 8rem; margin-left: -4rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+}
+.sp-heli .he-fuel { width: 100%; height: 0.375rem; border-radius: 999px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.sp-heli .he-fuel .sp-fuel-bar { height: 100%; border-radius: 999px; background: var(--accent-2); transition: width 0.4s ease; }
+.sp-heli > .dmg { left: 50%; right: auto; bottom: -1.25rem; width: 9rem; margin-left: -4.5rem; }
+
+.speedo-wrap[data-style="petrol"] .sp-petrol { display: block; }
+.speedo-wrap[data-style="diesel"] .sp-diesel { display: block; }
+.speedo-wrap[data-style="heli"]   .sp-heli   { display: block; }
+
+/* ---- Үлдсэн загварууд — ижил өнгө зүс ---- */
+.sp-bike { font-family: var(--font-body) !important; }
+/* Доод padding нь ENG зураасанд зай нөөцөлнө (petrol / diesel-тэй ижил
+   3.25rem). Өмнө нь 1rem байсан тул зураас картын доод агуулга дээр
+   давхарлаж байв. */
+.sp-bike .bike-body, .sp-moto .moto-body, .sp-air .av-panel, .sp-ev .ev-card {
+    padding: 1rem 1.25rem 3.25rem;
+    border-radius: 2rem;
+    background: var(--pill-bg) !important;
+    box-shadow: 0 0.375rem 1.375rem rgba(0, 0, 0, 0.45) !important;
+}
+.sp-bike .bike-screen { background: rgba(255, 255, 255, 0.08) !important; border-color: transparent !important; }
+.sp-bike .bike-title, .sp-bike .bike-cap { color: var(--text-dim) !important; letter-spacing: 0.14em; }
+.sp-bike .bike-speed, .sp-bike .bike-val { color: #fff !important; font-family: var(--font-body); font-weight: 900; }
+.sp-bike .bike-btn { background: rgba(255, 255, 255, 0.12) !important; color: var(--text-dim) !important; border-color: transparent !important; }
+
+.sp-ev { color: #fff !important; }
+.sp-ev .ev-mode, .sp-ev .ev-ecotitle, .sp-ev .ev-ready { color: var(--accent-2) !important; }
+.sp-ev .ev-power { stroke: var(--accent) !important; }
+.sp-ev .ev-gear { color: #fff !important; }
+
+.sp-air .av-cap { color: var(--text-dim) !important; letter-spacing: 0.14em; }
+.sp-moto .moto-cap, .sp-moto .moto-num { fill: rgba(255, 255, 255, 0.7); }
+.sp-moto .moto-needle { fill: var(--accent) !important; }
+.sp-moto .moto-tell.on, .sp-moto .moto-tell.blink { color: var(--accent-2) !important; }
+
+/* =========================================================
+   SETTINGS панел — Organic (cream) хуудас
+   ========================================================= */
+.editor-panel {
+    background: rgba(245, 234, 216, 0.97) !important;
+    border: none !important;
+    border-radius: 1.75rem !important;
+    color: #201e1d !important;
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.5) !important;
+    text-shadow: none;
+}
+.editor-logo { color: var(--accent) !important; letter-spacing: 0.16em; }
+.editor-logo span { color: #201e1d !important; }
+.editor-title { font-size: 1.625rem; font-weight: 900; color: #201e1d !important; }
+.setting-label { color: rgba(32, 30, 29, 0.55) !important; letter-spacing: 0.16em; font-weight: 800; }
+.editor-foot { color: rgba(32, 30, 29, 0.5) !important; }
+
+/* Status layout сонголт шинэ загварт хамаарахгүй болсон */
+#status-seg, #status-seg + *, .setting-group:has(#status-seg) { display: none !important; }
+
+.editor-btn, .seg button, .lang-seg button, .scale-reset {
+    border-radius: 999px !important;
+    border: 1px solid rgba(32, 30, 29, 0.18) !important;
+    background: transparent !important;
+    color: #201e1d !important;
+    font-family: var(--font-body);
+    font-weight: 700;
+    transition: background 0.15s ease;
+}
+.editor-btn:hover, .seg button:hover, .lang-seg button:hover, .scale-reset:hover {
+    background: rgba(198, 113, 57, 0.12) !important;
+}
+.seg button.active, .lang-seg button.active, .editor-btn.primary {
+    background: var(--accent) !important;
+    border-color: transparent !important;
+    color: #fff8ee !important;
+}
+#scale-range { accent-color: var(--accent); }
+.scale-val { color: var(--accent) !important; font-weight: 800; }
+
+.drag-bar {
+    background: rgba(198, 113, 57, 0.92) !important;
+    border: none !important;
+    border-radius: 999px !important;
+    color: #fff8ee !important;
+    text-shadow: none;
+}
+.drag-bar .editor-btn.primary { background: #f5ead8 !important; color: #2a1a0f !important; }
+
+body.editing [data-movable].editable {
+    outline: 0.125rem dashed rgba(198, 113, 57, 0.85) !important;
+    outline-offset: 0.375rem;
+    border-radius: 1.5rem;
+    background: rgba(20, 22, 20, 0.28) !important;
+}
+
+/* =========================================================
+   MINIMAP GHOST — "Байрлал засах" горимд minimap-ийг төлөөлөх хайрцаг
+   ---------------------------------------------------------
+   Minimap бол тоглоомын (scaleform) элемент тул NUI дотор шууд чирэх
+   боломжгүй. Оронд нь яг түүний хэмжээтэй энэ хайрцгийг чирэхэд
+   client.lua бодит radar-ыг тэнд зөөнө.
+
+   Анхдагч байрлал нь --mm-* хувьсагчаас ирдэг тул radar хаана байгаа
+   бол хайрцаг ч яг тэнд гарч ирнэ.
+   ========================================================= */
+.mm-ghost {
+    position: fixed;
+    left: var(--mm-x);
+    top: calc(100vh - var(--mm-b) - var(--mm-h));
+    width: var(--mm-w);
+    height: var(--mm-h);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 0.125rem dashed var(--accent);
+    border-radius: 0.5rem;
+    background: rgba(198, 113, 57, 0.14);
+    color: var(--accent);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.8);
+    cursor: move;
+    z-index: 50;
+}
+body.editing .mm-ghost { display: flex; }
+
+/* =========================================================
+   VEHICLE HUD — Toxic HUD-аас портлосон нэг карт
+   ---------------------------------------------------------
+   Өмнөх 7 загварыг (petrol / diesel / ev / bike / moto / heli / air)
+   орлуулав. Тэдгээрт ENG зураас absolute байрлалтай байсан тул
+   FUEL зураас дээр давхарлаж байсан — энд бүх мөр урсгал (flow)
+   дотор байрлана, давхардах боломжгүй.
+
+   Өнгө нь LS HUD-ийн skin хувьсагчдаас (--pill-bg / --accent /
+   --text-dim / --warn) ирнэ.
+   ========================================================= */
+.speedo-wrap[data-style="toxic"] .sp-toxic { display: flex; }
+
+.sp-toxic {
+    min-width: 14.125rem;
+    padding: 0.875rem 1rem 0.8125rem;
+    border-radius: 1rem;
+    background: var(--pill-bg) !important;
+    box-shadow: 0 0.375rem 1.375rem rgba(0, 0, 0, 0.45) !important;
+    flex-direction: column;
+    gap: 0.5625rem;
+}
+
+.sp-toxic .speed-row { display: flex; align-items: baseline; gap: 0.4375rem; }
+.sp-toxic .speed {
+    font-size: 2.375rem;
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+.sp-toxic .speed-unit {
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+}
+.sp-toxic .gear {
+    margin-left: auto;
+    font-size: 1.0625rem;
+    font-weight: 900;
+    color: var(--accent);
+}
+
+.sp-toxic .speed-bar {
+    height: 0.25rem;
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+.sp-toxic .speed-bar span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: 0.125rem;
+    background: var(--accent);
+    transition: width 0.14s linear;
+}
+
+.sp-toxic .card-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+}
+.sp-toxic .card-stats .stat { display: flex; align-items: center; gap: 0.375rem; }
+.sp-toxic .card-stats .stat strong { font-weight: 900; color: var(--text); }
+.sp-toxic .card-stats svg {
+    width: 0.8125rem;
+    height: 0.8125rem;
+    stroke: var(--text-dim);
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+/* Түлш / хөдөлгүүр үнэхээр бага болсон үед л улаан болно */
+.sp-toxic .card-stats .stat.low strong { color: var(--warn); }
+.sp-toxic .card-stats .stat.low svg { stroke: var(--warn); }

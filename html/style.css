@@ -1,0 +1,1012 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, sans-serif;
+    user-select: none;
+}
+
+/* Бүх хэмжээ rem-ээр өгөгдсөн тул html-ийн font-size-ыг script.js дэлгэцийн
+   нягтрал/харьцаанд тааруулан тооцоолж өгснөөр HUD бүхэлдээ пропорциональ
+   масштаблагдана. 16px нь JS ажиллаагүй үеийн fallback. */
+html {
+    font-size: 16px;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+}
+
+:root {
+    /* FiveM CEF дээр backdrop-filter blur нь хар дөрвөлжин болдог тул
+       blur ашиглахгүй, оронд нь арай тунгалаг хатуу дэвсгэр хэрэглэв */
+    --bg: rgba(15, 15, 17, 0.66);
+    --bg-soft: rgba(30, 30, 34, 0.6);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f4f4f5;
+    --text-dim: #9b9ba3;
+    --shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.45);
+    --radius: 0.875rem;
+
+    --c-health: #ef4444;
+    --c-armor:  #38bdf8;
+    --c-hunger: #f59e0b;
+    --c-thirst: #3b82f6;
+    --c-stress: #a855f7;
+    --c-stamina: #22c55e;
+    --c-voice:  #e2e8f0;
+    --c-voice-on: #facc15;   /* ярих үед шар */
+    --c-engine: #14b8a6;     /* машины хөдөлгүүрийн эрүүл мэнд (teal) */
+
+    /* =====================================================
+       RESPONSIVE — script.js бодит утгыг нь бөглөнө.
+       Энд байгаа нь 16:9 / safezone max үеийн fallback.
+       ===================================================== */
+    --hud-scale: 1;        /* мэдээллийн зорилгоор (font-size-д хэрэглэгдэнэ) */
+    --safe-x: 0px;         /* GTA safezone — хэвтээ зай (px) */
+    --safe-y: 0px;         /* GTA safezone — босоо зай (px) */
+    --mm-x: 0px;           /* minimap зүүн ирмэг, дэлгэцийн зүүнээс (px) */
+    --mm-w: 25vh;          /* minimap өргөн = resY / 4 */
+    --mm-h: 17.62vh;       /* minimap өндөр = resY / 5.674 */
+    --mm-b: 0px;           /* minimap доод ирмэг, дэлгэцийн доороос (px) */
+    --sp-fit: 1;           /* speedometer-ийн нэмэлт багасгалт (нарийн дэлгэц) */
+    --sp-reserved: 0px;    /* speedometer баруун доод буланд эзэлсэн өргөн */
+}
+
+/* hidden util */
+.is-hidden { opacity: 0 !important; transform: translateY(0.5rem); pointer-events: none; }
+
+/* =========================================================
+   STATUS — зүүн доод
+   ========================================================= */
+.status-wrap {
+    position: fixed;
+    /* minimap-ийн баруун талд. Minimap-ийн өргөн/өндөр нь дэлгэцийн өндөр ба
+       aspect ratio-оос хамаардаг тул JS-ээс ирсэн хувьсагчид дээр тулгуурлана. */
+    left: calc(var(--mm-x) + var(--mm-w) + 1rem);
+    bottom: calc(var(--mm-b) + 1.625rem);
+    /* Нарийн дэлгэцэнд (4:3, 800x600) баруун тийш халихгүйгээр мөр тасална */
+    max-width: calc(100vw - var(--mm-x) - var(--mm-w) - var(--sp-reserved) - 1.5rem);
+    display: flex;
+    flex-wrap: wrap-reverse;
+    gap: 0.625rem;
+    align-items: center;
+}
+
+.status-circle {
+    position: relative;
+    width: 2.875rem;
+    height: 2.875rem;
+}
+
+.status-circle svg {
+    width: 2.875rem;
+    height: 2.875rem;
+    transform: rotate(-90deg);
+}
+
+.status-circle .track {
+    fill: var(--bg);
+    stroke: rgba(255,255,255,0.06);
+    stroke-width: 4;
+}
+
+.status-circle .fill {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 119.38;     /* 2*pi*19 */
+    stroke-dashoffset: 119.38;
+    transition: stroke-dashoffset 0.35s ease, stroke 0.3s ease;
+}
+
+.status-circle .icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.status-circle .icon svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    transform: none;
+    fill: #fff;
+    opacity: 0.92;
+}
+
+.status-circle[data-key="health"]  .fill { stroke: var(--c-health); }
+.status-circle[data-key="armor"]   .fill { stroke: var(--c-armor);  }
+.status-circle[data-key="hunger"]  .fill { stroke: var(--c-hunger); }
+.status-circle[data-key="thirst"]  .fill { stroke: var(--c-thirst); }
+.status-circle[data-key="stress"]  .fill { stroke: var(--c-stress); }
+.status-circle[data-key="stamina"] .fill { stroke: var(--c-stamina); }
+.status-circle[data-key="voice"]   .fill { stroke: var(--c-voice); }
+.status-circle[data-key="engine"]  .fill { stroke: var(--c-engine); }
+
+/* Хөдөлгүүрийн эрүүл мэнд бага (<30%) үед улаан болж анхааруулна */
+.status-circle[data-key="engine"].low .fill { stroke: var(--c-health); }
+.status-circle[data-key="engine"].low .icon svg { fill: var(--c-health); }
+.status-circle[data-key="engine"].low { animation: voicePulse 1s ease-in-out infinite; }
+
+/* Voice (микрофон) — ярьж байх үед ногоон болж гэрэлтэнэ */
+.status-circle[data-key="voice"] .icon svg { fill: var(--c-voice); }
+.status-circle[data-key="voice"].talking .fill { stroke: var(--c-voice-on); }
+.status-circle[data-key="voice"].talking .icon svg {
+    fill: var(--c-voice-on);
+    opacity: 1;
+}
+.status-circle[data-key="voice"].talking {
+    animation: voicePulse 1s ease-in-out infinite;
+}
+@keyframes voicePulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+}
+
+/* Voice range badge (1/2/3) */
+.voice-range {
+    position: absolute;
+    right: -0.1875rem;
+    bottom: -0.1875rem;
+    min-width: 0.9375rem;
+    height: 0.9375rem;
+    padding: 0 0.1875rem;
+    border-radius: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.5625rem;
+    font-weight: 800;
+    line-height: 0.9375rem;
+    text-align: center;
+}
+
+/* =========================================================
+   INFO КАРТ — зүүн дээд
+   ========================================================= */
+.info-wrap {
+    position: fixed;
+    left: calc(var(--safe-x) + 1.375rem);
+    top: calc(var(--safe-y) + 1.125rem);
+    max-width: calc(100vw - 2 * var(--safe-x) - 2.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4375rem;
+    align-items: flex-start;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.info-row {
+    display: flex;
+    gap: 0.4375rem;
+    justify-content: flex-start;
+}
+
+.info-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    padding: 0.375rem 0.6875rem;
+    color: var(--text);
+    font-size: 0.7812rem;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+}
+
+.info-chip.wide { min-width: 6.875rem; justify-content: flex-start; }
+.info-chip .mini { width: 0.875rem; height: 0.875rem; fill: var(--text-dim); }
+.info-chip .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #22c55e; }
+.info-chip.cash .mini { fill: #22c55e; }
+.info-chip.cash { color: #22c55e; }
+.info-chip.bank .mini { fill: #38bdf8; }
+.info-chip.bank { color: #7dd3fc; }
+
+/* =========================================================
+   STREET / COMPASS — дэлгэцийн дээд гол
+   ========================================================= */
+.street-wrap {
+    position: fixed;
+    top: calc(var(--safe-y) + 0.75rem);
+    left: 50%;
+    transform: translateX(-50%);
+    /* Нарийн дэлгэцэнд гудамжны нэрс дэлгэцээс халихгүй */
+    max-width: calc(100vw - 2 * var(--safe-x) - 1.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    transition: opacity 0.3s ease;
+}
+
+/* hidden util-ийн translateY-г дарж голлуулсан хэвээр нуух */
+.street-wrap.is-hidden { transform: translateX(-50%) translateY(-0.5rem); }
+
+/* зүүн / баруун огтлолцох гудамжны нэр */
+.street-side {
+    min-width: 5.625rem;
+    max-width: 10.625rem;
+    font-size: 0.7812rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.85);
+}
+.street-side.left  { text-align: right; }
+.street-side.right { text-align: left; }
+
+/* гол хэсэг — өнцөг + одоогийн гудамж */
+.street-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 7.5rem;
+}
+
+.street-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    color: #fff;
+    text-shadow: 0 0.0625rem 0.3125rem rgba(0,0,0,0.9);
+}
+.street-heading #street-dir {
+    font-size: 1.375rem;
+    font-weight: 900;
+    letter-spacing: 0.0312rem;
+}
+.street-heading #street-deg {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+
+.street-name {
+    color: var(--text);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    margin-top: 0.0625rem;
+    white-space: nowrap;
+    text-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.85);
+}
+
+/* =========================================================
+   SPEEDOMETER — баруун доод
+   ========================================================= */
+.speedo-wrap {
+    position: fixed;
+    right: calc(var(--safe-x) + 1.375rem);
+    bottom: calc(var(--safe-y) + 1.375rem);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Зөвхөн сонгосон загварыг харуулна.
+   --sp-fit: намхан / нарийн дэлгэцэнд (ж: 800x600 дээрх air, moto, modernpro)
+   хэмжүүр дэлгэцийг хэт эзлэхээс сэргийлж script.js-ээс тавигдана. */
+.sp {
+    display: none;
+    transform: scale(var(--sp-fit, 1));
+    transform-origin: 100% 100%;   /* баруун доод булангаас багасна */
+}
+
+/* Тоглогч гараар зөөсөн үед left/top-оос тоологддог тул зүүн дээд булангаас */
+.speedo-wrap.free .sp { transform-origin: 0 0; }
+.speedo-wrap[data-style="modernpro"] .sp-modernpro { display: block; }
+.speedo-wrap[data-style="ev"]        .sp-ev        { display: block; }
+.speedo-wrap[data-style="minimal"]   .sp-minimal   { display: flex;  }
+.speedo-wrap[data-style="retro"]     .sp-retro     { display: block; }
+.speedo-wrap[data-style="bike"]      .sp-bike      { display: block; }
+.speedo-wrap[data-style="air"]       .sp-air       { display: block; }
+.speedo-wrap[data-style="moto"]      .sp-moto      { display: block; }
+
+.speedo-ring { position: relative; width: 14.75rem; height: 14.75rem; }
+
+/* Цайвар дэвсгэр дээр уншигдахуйц байхын тулд бараан дугуй ар талд */
+.speedo-ring::before {
+    content: '';
+    position: absolute;
+    inset: 1rem;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(12,12,15,0.72) 55%, rgba(12,12,15,0.0) 78%);
+}
+
+.speedo-ring svg {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform: rotate(135deg);     /* 270° gauge, доод тал нээлттэй */
+}
+
+.ring-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.22);
+    stroke-width: 9;
+    stroke-linecap: round;
+    stroke-dasharray: 414.7 552.9;   /* 270 / 360 */
+}
+
+.ring-rpm {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 9;
+    stroke-linecap: round;
+    stroke-dasharray: 0 552.9;
+    transition: stroke-dasharray 0.12s linear, stroke 0.25s ease;
+    filter: drop-shadow(0 0 0.25rem rgba(255,255,255,0.55));
+}
+
+.speedo-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.speedo-center .gear {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.08);
+    border-radius: 0.4375rem;
+    padding: 0.0625rem 0.5625rem;
+    margin-bottom: 0.125rem;
+}
+
+.speedo-center .speed {
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #fff;
+    letter-spacing: -0.0625rem;
+    text-shadow: 0 0.125rem 0.375rem rgba(0,0,0,0.8);
+}
+
+.speedo-center .unit {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    letter-spacing: 0.0625rem;
+    margin-top: 0.125rem;
+    text-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.8);
+}
+
+.speedo-icons {
+    position: absolute;
+    bottom: 1.125rem;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 0.875rem;
+}
+
+.speedo-icons .ico {
+    display: flex;
+    align-items: center;
+    gap: 0.1875rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    text-shadow: 0 0.0625rem 0.1875rem rgba(0,0,0,0.8);
+}
+.speedo-icons .ico svg { width: 0.9375rem; height: 0.9375rem; fill: #cbd5e1; }
+
+.speedo-icons .ico.fuel.low svg,
+.speedo-icons .ico.fuel.low span { fill: var(--c-hunger); color: var(--c-hunger); }
+.speedo-icons .ico.belt.on svg { fill: #ef4444; }
+.speedo-icons .ico.engine.off svg { fill: #ef4444; }
+.speedo-icons .ico.engine.on svg { fill: #22c55e; }
+
+/* Indicator icon-уудын ерөнхий төлөв (бүх загварт) */
+.ico { display: flex; align-items: center; gap: 0.1875rem; color: #cbd5e1; font-weight: 700; }
+.ico svg { width: 0.9375rem; height: 0.9375rem; fill: #cbd5e1; transition: fill 0.15s, filter 0.15s; }
+.ico.fuel.low svg, .ico.fuel.low span { fill: var(--c-hunger); color: var(--c-hunger); }
+.ico.engine.off svg { fill: #ef4444; }
+.ico.engine.on svg { fill: #22c55e; }
+
+/* Бүсээ зүүгээгүй үед — тод улаан, гэрэлтэж анивчина (сайн анзаарагдахуйц) */
+.ico.belt svg { width: 1.0625rem; height: 1.0625rem; }
+.ico.belt.on svg {
+    fill: #ef4444;
+    filter: drop-shadow(0 0 0.375rem rgba(239,68,68,0.95));
+    animation: beltWarn 0.7s steps(1) infinite;
+}
+@keyframes beltWarn { 50% { opacity: 0.3; } }
+
+/* Ойрын / холын гэрэл telltale — унтраалттай үед бүдэг, асахад тод гэрэлтэнэ.
+   .on = ойрын гэрэл (ногоон), .high = холын гэрэл (тод цэнхэр, авто стандарт). */
+.ico.beam svg { width: 1.0625rem; height: 1.0625rem; fill: #4b5563; }
+.ico.beam.on svg {
+    fill: #22c55e;
+    filter: drop-shadow(0 0 0.375rem rgba(34,197,94,0.9));
+}
+.ico.beam.high svg {
+    fill: #3fa9f5;
+    filter: drop-shadow(0 0 0.4375rem rgba(63,169,245,1));
+}
+
+/* ===== Style: MODERN PRO (аналог cluster) ===== */
+.sp-modernpro { position: relative; }
+.mp-cluster {
+    display: block;
+    width: 29rem;
+    height: auto;
+    filter: drop-shadow(0 0.3125rem 1rem rgba(0, 0, 0, 0.6));
+}
+.mp-rim  { fill: #050505; stroke: #9aa3a6; stroke-width: 2; }
+.mp-face { fill: #0a0a0a; stroke: none; }
+.mp-tick { stroke: #ff5e35; stroke-width: 1.3; stroke-linecap: round; }
+.mp-tick.major { stroke-width: 2.8; stroke: #ff7a4d; }
+.mp-label { fill: #ff7044; font-weight: 700; }
+.mp-inner { fill: #ff6a3d; font-weight: 600; opacity: 0.92; }
+.mp-endlbl { fill: #ff7044; font-weight: 700; }
+.mp-red { fill: none; stroke: #ff2b14; stroke-width: 5; stroke-linecap: butt; }
+.mp-needle { fill: #ff3a1d; }
+.mp-glow { fill: #ff3a1d; opacity: 0.5; }
+.mp-cap { fill: #161616; stroke: #9aa3a6; stroke-width: 2; }
+.mp-title { fill: #ff7044; font-weight: 800; letter-spacing: 0.0625rem; }
+.mp-sub { fill: #ff8a5e; font-weight: 700; letter-spacing: 0.0625rem; }
+.mp-warn {
+    position: absolute;
+    left: 50%;
+    bottom: 0.125rem;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1rem;
+}
+
+/* ===== Style: MOTO (мотоциклын хос аналог хэмжүүр) ===== */
+.moto-body {
+    width: 26.25rem;
+    background: linear-gradient(180deg, #18191b 0%, #050506 100%);
+    border: 1px solid #2c2e31;
+    border-radius: 1.125rem;
+    padding: 0.5rem 0.75rem 0.375rem;
+    box-shadow: var(--shadow), inset 0 0 0 0.0625rem rgba(255,255,255,0.03);
+}
+.moto-cluster {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 0.3125rem 0.875rem rgba(0,0,0,0.6));
+}
+/* Chrome bezel + хар нүүр */
+.moto-bezel { fill: none; stroke: #cfd4d8; stroke-width: 4; }
+.moto-bezel2 { fill: none; stroke: #6b7176; stroke-width: 1.5; }
+.moto-face { fill: #060606; }
+.moto-tick { stroke: #e8edf1; stroke-width: 1.2; stroke-linecap: round; }
+.moto-tick.major { stroke-width: 2.6; }
+.moto-tick.blue { stroke: #3fa9f5; }
+.moto-num { fill: #f2f5f8; font-weight: 700; }
+.moto-cap { fill: #c8ccd0; font-weight: 700; letter-spacing: 0.0312rem; }
+.moto-needle { fill: #ff2e1a; }
+.moto-hub { fill: #1a1b1d; stroke: #c9ced2; stroke-width: 1.6; }
+/* Odometer цонх */
+.moto-odo-box { fill: #0d0d0e; stroke: #3a3d40; stroke-width: 1; }
+.moto-odo-txt { fill: #f4f6f8; font-weight: 800; letter-spacing: 0.125rem; font-family: 'Consolas','Courier New',monospace; }
+
+/* Доод заагч гэрлүүд */
+.moto-tells {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.375rem;
+    margin-top: 0.125rem;
+    padding: 0.125rem 0;
+}
+.moto-tell {
+    width: 1.375rem;
+    height: 1.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.22;
+    transition: opacity 0.12s, filter 0.12s;
+}
+.moto-tell svg { width: 100%; height: 100%; fill: currentColor; }
+.moto-tell.neutral { font-size: 0.9375rem; font-weight: 900; color: #16d65a; }
+.moto-tell.turn { color: #16d65a; }
+.moto-tell.beam { color: #16d65a; }          /* ойрын гэрэл = ногоон */
+.moto-tell.beam.high { color: #3fa9f5; }     /* холын гэрэл = тод цэнхэр */
+/* Идэвхтэй үед гэрэлтэнэ */
+.moto-tell.on { opacity: 1; filter: drop-shadow(0 0 0.3125rem currentColor); }
+.moto-tell.blink { opacity: 1; filter: drop-shadow(0 0 0.3125rem currentColor); animation: motoBlink 0.5s steps(1) infinite; }
+@keyframes motoBlink { 50% { opacity: 0.2; filter: none; } }
+
+/* ===== Style: EV (цахилгаан машины дижитал кластер) ===== */
+.sp-ev { color: #e7edf2; }
+.ev-card {
+    width: 26.875rem;
+    background: linear-gradient(180deg, #0d1218 0%, #090c10 100%);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1rem;
+    padding: 0.625rem 0.875rem 0.75rem;
+    box-shadow: var(--shadow);
+}
+.ev-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ev-temp { color: #cbd5e1; }
+.ev-mode { color: #34d399; font-weight: 800; letter-spacing: 0.025rem; }
+.ev-clock { color: #cbd5e1; }
+/* EV кластерийн дээд мөр дэх гэрлийн telltale — мөртэй таарсан жижиг хэмжээ */
+.ev-beam svg { width: 0.9375rem; height: 0.9375rem; }
+
+.ev-main { display: flex; align-items: center; gap: 0.625rem; padding-top: 0.625rem; }
+
+/* Зүүн Eco панель */
+.ev-left { width: 9.375rem; }
+.ev-ecotitle { font-size: 0.75rem; font-weight: 700; color: #9fb0bd; }
+.ev-score { font-size: 0.75rem; font-weight: 700; color: #cbd5e1; margin: 0.125rem 0 0.5rem; }
+.ev-score b { color: #34d399; font-size: 0.875rem; }
+.ev-bars { display: flex; flex-direction: column; gap: 0.3125rem; }
+.ev-bar { display: flex; align-items: center; gap: 0.375rem; font-size: 0.5938rem; color: #9fb0bd; font-weight: 600; }
+.ev-bar span { width: 2.375rem; }
+.ev-seg {
+    flex: 1;
+    height: 0.5rem;
+    border-radius: 0.125rem;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 0.3125rem, transparent 0.3125rem 0.5rem);
+    position: relative;
+}
+.ev-seg::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--p, 50%);
+    border-radius: 0.125rem;
+    background: repeating-linear-gradient(90deg, #34d399 0 0.3125rem, transparent 0.3125rem 0.5rem);
+}
+.ev-ready {
+    display: inline-block;
+    margin-top: 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    color: #34d399;
+    border: 1px solid rgba(52,211,153,0.5);
+    border-radius: 0.3125rem;
+    padding: 0.125rem 0.5rem;
+}
+
+/* Баруун хэмжүүр */
+.ev-right { position: relative; width: 10.5rem; height: 10.5rem; flex: 0 0 auto; margin-left: auto; }
+.ev-ring { width: 10.5rem; height: 10.5rem; transform: rotate(135deg); }
+.ev-track { fill: none; stroke: rgba(255,255,255,0.10); stroke-width: 7; stroke-dasharray: 405.3 540.4; stroke-linecap: round; }
+.ev-power { fill: none; stroke: #34d399; stroke-width: 7; stroke-dasharray: 0 540.4; stroke-linecap: round; transition: stroke-dasharray 0.15s linear, stroke 0.25s ease; }
+.ev-lbl { position: absolute; font-size: 0.5625rem; font-weight: 700; color: #7f93a1; }
+.ev-lbl-chg { left: 0.625rem; top: 6rem; color: #38bdf8; }
+.ev-lbl-eco { left: 50%; bottom: 0.5rem; transform: translateX(-50%); color: #34d399; }
+.ev-lbl-pwr { right: 0.75rem; top: 6rem; color: #f59e0b; }
+.ev-gear { position: absolute; right: 1.5rem; top: 1.625rem; font-size: 1.125rem; font-weight: 900; color: #fff; }
+.ev-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ev-kmh { font-size: 0.625rem; font-weight: 700; color: #9fb0bd; }
+.ev-speed { font-size: 3rem; font-weight: 800; line-height: 0.95; color: #fff; }
+.ev-unit { font-size: 0.5938rem; font-weight: 700; color: #34d399; letter-spacing: 0.0312rem; }
+.ev-batt { position: absolute; left: 50%; bottom: 1.375rem; transform: translateX(-50%); display: flex; align-items: center; gap: 0.3125rem; font-size: 0.625rem; font-weight: 700; color: #cbd5e1; }
+.ev-batticon { width: 1.375rem; height: 0.6875rem; border: 1px solid #9fb0bd; border-radius: 0.125rem; padding: 0.0625rem; position: relative; }
+.ev-batticon::after { content: ''; position: absolute; right: -0.1875rem; top: 0.1875rem; width: 0.125rem; height: 0.25rem; background: #9fb0bd; border-radius: 0 0.0625rem 0.0625rem 0; }
+.ev-battlvl { height: 100%; width: 100%; background: #34d399; border-radius: 0.0625rem; }
+
+/* ===== Style: MINIMAL ===== */
+.sp-minimal {
+    align-items: center;
+    gap: 0.625rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    box-shadow: var(--shadow);
+}
+.min-gear { font-size: 0.8125rem; font-weight: 800; color: #fff; background: rgba(255,255,255,0.12); border-radius: 0.375rem; padding: 0.125rem 0.5rem; }
+.min-fuelwrap { display: flex; align-items: center; gap: 0.3125rem; }
+.min-fuelbar { width: 2.375rem; height: 0.3125rem; border-radius: 0.1875rem; background: rgba(255,255,255,0.14); overflow: hidden; }
+.min-fuelbar-fill { height: 100%; width: 100%; background: var(--c-hunger); transition: width 0.3s ease; }
+.min-speed { display: flex; align-items: baseline; gap: 0.3125rem; color: #fff; }
+.min-speed .sp-speed { font-size: 1.75rem; font-weight: 800; line-height: 1; }
+.min-unit { font-size: 0.625rem; font-weight: 700; color: var(--text-dim); letter-spacing: 0.0625rem; }
+
+/* ===== Style: RETRO ===== */
+.sp-retro {
+    width: 12.5rem;
+    background: #0d0d0f;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.875rem;
+    box-shadow: var(--shadow);
+}
+.retro-top { display: flex; align-items: center; gap: 0.625rem; }
+.retro-gear { font-size: 0.875rem; font-weight: 900; color: #0b0b0d; background: #fff; border-radius: 0.3125rem; padding: 0.125rem 0.5rem; }
+.retro-speed { flex: 1; font-size: 2.75rem; font-weight: 900; color: #fff; letter-spacing: 0.125rem; text-align: left; }
+.retro-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+.retro-unit { font-size: 0.625rem; font-weight: 700; color: var(--text-dim); letter-spacing: 0.0625rem; }
+.retro-fuel { font-size: 0.75rem; font-weight: 800; color: var(--c-hunger); }
+.retro-bar { height: 0.5625rem; margin: 0.625rem 0 0.5rem; border-radius: 0.125rem; overflow: hidden;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.16) 0 0.375rem, transparent 0.375rem 0.625rem); }
+.retro-bar-fill { height: 100%; width: 0%; transition: width 0.12s linear;
+    background: repeating-linear-gradient(90deg, #fff 0 0.375rem, transparent 0.375rem 0.625rem); }
+.retro-icons { display: flex; gap: 1rem; justify-content: center; }
+
+/* ===== Style: BIKE (унадаг дугуйн компьютер LCD) ===== */
+.sp-bike { font-family: 'Inter', sans-serif; }
+.bike-body {
+    width: 12.25rem;
+    background: #15171a;
+    border: 0.1875rem solid #0c0d0f;
+    border-radius: 1rem;
+    padding: 0.5rem 0.625rem 0.375rem;
+    box-shadow: var(--shadow), inset 0 0 0 0.0625rem rgba(255,255,255,0.05);
+}
+.bike-title {
+    text-align: center;
+    color: #e7e7e7;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.0187rem;
+    margin-bottom: 0.375rem;
+}
+.bike-screen {
+    background: linear-gradient(180deg, #aacb4f 0%, #9ec24a 100%);
+    border-radius: 0.5rem;
+    padding: 0.4375rem 0.5625rem;
+    color: #14210a;
+    box-shadow: inset 0 0 0.5rem rgba(0,0,0,0.25);
+}
+.bike-row { display: flex; align-items: center; }
+.bike-top { justify-content: space-between; align-items: flex-end; padding-bottom: 0.3125rem; }
+.bike-left { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.bike-cap { font-size: 0.5625rem; font-weight: 700; opacity: 0.85; }
+
+/* эргэдэг цэгэн индикатор */
+.bike-spinner { position: relative; width: 1.625rem; height: 1.625rem; }
+.bike-spinner i {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 0.25rem; height: 0.25rem;
+    margin-left: -0.125rem;
+    border-radius: 50%;
+    background: #14210a;
+    transform-origin: 0.125rem 0.8125rem;
+}
+.bike-spinner i:nth-child(1) { transform: rotate(0deg); }
+.bike-spinner i:nth-child(2) { transform: rotate(45deg); opacity: 0.85; }
+.bike-spinner i:nth-child(3) { transform: rotate(90deg); opacity: 0.7; }
+.bike-spinner i:nth-child(4) { transform: rotate(135deg); opacity: 0.55; }
+.bike-spinner i:nth-child(5) { transform: rotate(180deg); opacity: 0.4; }
+.bike-spinner i:nth-child(6) { transform: rotate(225deg); opacity: 0.3; }
+.bike-spinner i:nth-child(7) { transform: rotate(270deg); opacity: 0.22; }
+.bike-spinner i:nth-child(8) { transform: rotate(315deg); opacity: 0.16; }
+.bike-spinner.spin { animation: bikeSpin 0.7s linear infinite; }
+@keyframes bikeSpin { to { transform: rotate(360deg); } }
+
+.bike-main { text-align: right; }
+.bike-unit { font-size: 0.5312rem; font-weight: 700; opacity: 0.85; }
+.bike-speed { font-size: 2rem; font-weight: 800; line-height: 0.9; letter-spacing: -0.0625rem; }
+
+.bike-mid, .bike-bot {
+    justify-content: space-between;
+    align-items: baseline;
+    border-top: 1px solid rgba(20,33,10,0.35);
+    padding: 0.25rem 0 0.125rem;
+}
+.bike-val { font-size: 1.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.0312rem; }
+
+.bike-btns { display: flex; justify-content: space-between; padding: 0.375rem 0.875rem 0.125rem; }
+.bike-btn { color: #e7e7e7; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.0312rem; }
+
+/* ===== Style: AIR (нисэхийн багажийн самбар) ===== */
+.av-panel {
+    background: linear-gradient(180deg, #1a1c1e 0%, #0c0d0e 100%);
+    border: 0.125rem solid #2a2d30;
+    border-radius: 1.125rem;
+    padding: 0.875rem 1rem;
+    box-shadow: var(--shadow), inset 0 0 0 0.0625rem rgba(255,255,255,0.04);
+}
+.av-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 6.875rem);
+    gap: 0.875rem 1rem;
+}
+.av-inst { display: flex; flex-direction: column; align-items: center; }
+.av-inst svg { width: 6.875rem; height: 6.875rem; }
+.av-cap { margin-top: 0.1875rem; font-size: 0.5625rem; font-weight: 700; color: #9aa3a6; letter-spacing: 0.0312rem; }
+
+.av-face { fill: #0a0a0b; stroke: #3a3d40; stroke-width: 2; }
+.av-tick { stroke: #e7edf2; stroke-width: 1; stroke-linecap: round; }
+.av-tick.major { stroke-width: 2; }
+.av-num { fill: #ffffff; font-weight: 700; }
+.av-needle { fill: #f4f6f8; }
+.av-hub { fill: #1a1d20; stroke: #6b7176; stroke-width: 1.5; }
+.av-green { fill: none; stroke: #2ec27e; stroke-width: 3; }
+.av-redline { fill: none; stroke: #ef4444; stroke-width: 3; }
+.av-center-txt { fill: #ffffff; font-weight: 800; }
+.av-alt-val { fill: #ffffff; font-weight: 800; }
+
+/* Attitude indicator */
+.av-sky { fill: #2f8fd6; }
+.av-ground { fill: #7a4a22; }
+.av-hline { stroke: #ffffff; stroke-width: 1.5; }
+.av-ladder { stroke: #ffffff; stroke-width: 1; opacity: 0.85; }
+.av-bezel { fill: none; stroke: #3a3d40; stroke-width: 2; }
+.av-acft { stroke: #ffd400; stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.av-bankptr { fill: #ffd400; }
+
+/* HSI / heading */
+.av-lubber { fill: #ffd400; }
+
+/* =========================================================
+   HUD EDITOR — тохиргооны цэс (drag-to-move)
+   ========================================================= */
+.hud-editor {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    /* Намхан дэлгэцэнд (600px) цэс дэлгэцээс халихгүй */
+    padding-top: clamp(0.75rem, 8vh, 5.625rem);
+    background: rgba(0, 0, 0, 0.35);
+    /* ЧУХАЛ: overlay өөртөө клик татахгүй — HUD элементүүдийг чирэх боломжтой */
+    pointer-events: none;
+}
+.hud-editor.open { display: flex; }
+
+.editor-panel {
+    pointer-events: auto;
+    width: 22.5rem;
+    max-width: 92vw;
+    max-height: 84vh;
+    overflow-y: auto;
+    background: rgba(18, 18, 22, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.editor-logo {
+    font-size: 1.625rem;
+    font-weight: 900;
+    letter-spacing: 0.0625rem;
+    color: #fff;
+}
+.editor-logo span { color: #38bdf8; }
+
+.editor-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 0.125rem;
+}
+.editor-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin: 0.625rem 0 1rem;
+    line-height: 1.5;
+}
+.editor-hint b { color: #38bdf8; }
+
+.editor-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+.editor-btn {
+    flex: 1;
+    cursor: pointer;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font-size: 0.7812rem;
+    font-weight: 700;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+.editor-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.editor-btn:active { transform: scale(0.97); }
+.editor-btn.primary {
+    background: #38bdf8;
+    border-color: #38bdf8;
+    color: #0b0b0d;
+}
+.editor-btn.primary:hover { background: #5cc8fa; }
+
+.editor-foot {
+    margin-top: 0.75rem;
+    font-size: 0.6562rem;
+    color: var(--text-dim);
+}
+
+/* ----- Setting groups ----- */
+.setting-group { text-align: left; margin: 1rem 0; }
+.setting-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.0375rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Speedo загвар сонгох grid */
+.style-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+.style-card {
+    cursor: pointer;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    color: var(--text);
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.style-card:hover { background: rgba(255,255,255,0.09); }
+.style-card.active { border-color: #38bdf8; background: rgba(56,189,248,0.12); }
+.style-prev {
+    height: 2.875rem;
+    border-radius: 0.5rem;
+    background: #0d0d0f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    margin-bottom: 0.375rem;
+    overflow: hidden;
+}
+.prev-modernpro span { font-size: 1.125rem; font-weight: 800; border: 0.1875rem solid #38bdf8; border-right-color: transparent; border-radius: 50%; padding: 0.375rem 0.5rem; }
+.prev-ev b { font-size: 1.375rem; font-weight: 900; color: #34d399; }
+.prev-minimal i { font-style: normal; font-size: 1rem; font-weight: 800; background: rgba(255,255,255,0.1); padding: 0.1875rem 0.625rem; border-radius: 0.375rem; }
+.prev-retro em { font-style: normal; font-size: 1.375rem; font-weight: 900; letter-spacing: 0.125rem; }
+.style-name { font-size: 0.7188rem; font-weight: 700; text-align: center; }
+
+/* Нэгж сонгогч (segment) */
+.seg {
+    display: flex;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    padding: 0.1875rem;
+    gap: 0.1875rem;
+}
+.seg button {
+    flex: 1;
+    cursor: pointer;
+    padding: 0.4375rem;
+    border: none;
+    border-radius: 0.4375rem;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+.seg button.active { background: #38bdf8; color: #0b0b0d; }
+
+/* ----- Хэл сонгох grid ----- */
+.lang-seg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    padding: 0.25rem;
+}
+.lang-seg button {
+    cursor: pointer;
+    padding: 0.4375rem 0.25rem;
+    border: none;
+    border-radius: 0.4375rem;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.7188rem;
+    font-weight: 700;
+    transition: background 0.15s, color 0.15s;
+}
+.lang-seg button:hover { background: rgba(255, 255, 255, 0.09); }
+.lang-seg button.active { background: #38bdf8; color: #0b0b0d; }
+
+/* ----- Drag mode bar ----- */
+.drag-bar { display: none; }
+.hud-editor.dragmode #settings-panel { display: none; }
+.hud-editor.dragmode .drag-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    pointer-events: auto;
+    background: rgba(18, 18, 22, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-size: 0.7812rem;
+    font-weight: 600;
+}
+.drag-bar b { color: #38bdf8; }
+.drag-bar .editor-btn { flex: 0 0 auto; }
+
+/* Edit горимд — зөөж болох элементүүд тодорч, overlay-ийн дээр гарна */
+.editable {
+    outline: 0.125rem dashed #38bdf8;
+    outline-offset: 0.375rem;
+    border-radius: 0.5rem;
+    cursor: move;
+    z-index: 10001;             /* dim overlay (9999)-ийн дээр */
+    pointer-events: auto !important;
+}
+/* Edit горимд нуугдсан элементүүдийг ч харуулна (зөөж болохын тулд) */
+body.editing #speedo,
+body.editing #street {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* ----- HUD хэмжээний слайдер ----- */
+.scale-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    padding: 0.5rem 0.625rem;
+}
+.scale-row input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 0.25rem;
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.18);
+    outline: none;
+    cursor: pointer;
+}
+.scale-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background: #38bdf8;
+    cursor: pointer;
+}
+.scale-val {
+    min-width: 2.75rem;
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text);
+}
+.scale-reset {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+    border-radius: 0.4375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+}
+.scale-reset:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
