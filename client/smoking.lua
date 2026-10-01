@@ -47,6 +47,74 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
 
     busy = true
 
+    local ped = cache.ped or PlayerPedId()
+
+    -- Prop / анимацийг өөрсдөө удирдана — ингэснээр prop дээр утаа / гэрэл
+    -- залгах боломжтой (lib.progressCircle prop-ийн заагчийг буцаадаггүй).
+    local prop
+    if cfg.prop then
+        local model = joaat(cfg.prop)
+        lib.requestModel(model, 5000)
+        local c = GetEntityCoords(ped)
+        prop = CreateObject(model, c.x, c.y, c.z + 0.2, true, true, false)
+        SetModelAsNoLongerNeeded(model)
+        AttachEntityToEntity(prop, ped, GetPedBoneIndex(ped, cfg.bone or 28422),
+            cfg.pos.x, cfg.pos.y, cfg.pos.z, cfg.rot.x, cfg.rot.y, cfg.rot.z,
+            true, true, false, true, 1, true)
+    end
+
+    local running = true
+    local fx = cfg.fx
+    if fx then
+        CreateThread(function()
+            lib.requestNamedPtfx('core')
+            local handles = {}
+            local function stopAll()
+                for i = 1, #handles do StopParticleFxLooped(handles[i], false) end
+            end
+
+            -- Тамхины үзүүрээс тасралтгүй гарах утаа
+            if fx.trail and prop then
+                UseParticleFxAsset('core')
+                handles[#handles + 1] = StartParticleFxLoopedOnEntity(fx.trail, prop,
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, fx.scale or 1.0, false, false, false)
+            end
+
+            -- 4 секундын мөчлөг: 0-1.5с сорох (гэрэл тод) -> 1.5-4с амнаас утаа гаргах
+            local started = GetGameTimer()
+            local puffed = false
+            while running and DoesEntityExist(ped) do
+                local t = ((GetGameTimer() - started) % 4000) / 1000.0
+                local drag = t < 1.5
+
+                if drag then puffed = false end
+
+                -- Үзүүр улаасах / вэйпийн LED
+                if prop and DoesEntityExist(prop) and (fx.ember or fx.led) then
+                    local p = GetOffsetFromEntityInWorldCoords(prop, 0.0, 0.0, 0.0)
+                    if fx.ember then
+                        local glow = drag and 1.0 or 0.35
+                        DrawLightWithRange(p.x, p.y, p.z, 255, 60, 10, 0.35, 1.2 * glow)
+                    elseif drag then
+                        DrawLightWithRange(p.x, p.y, p.z, 40, 120, 255, 0.4, 1.0)
+                    end
+                end
+
+                -- Амнаас гарах утаа (мөчлөг бүрт нэг удаа)
+                if not drag and not puffed and fx.exhale then
+                    puffed = true
+                    UseParticleFxAsset('core')
+                    local h = StartParticleFxLoopedOnPedBone(fx.exhale, ped,
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 31086, fx.scale or 1.0, false, false, false)
+                    SetTimeout(1800, function() StopParticleFxLooped(h, false) end)
+                end
+
+                Wait(0)
+            end
+            stopAll()
+        end)
+    end
+
     local done = lib.progressCircle({
         duration    = (cfg.duration or 10) * 1000,
         label       = cfg.label or '...',
@@ -55,13 +123,10 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
         canCancel   = true,
         disable     = { move = false, car = false, combat = true },
         anim        = { dict = cfg.dict, clip = cfg.anim, flag = 49 },
-        prop        = cfg.prop and {
-            model = cfg.prop,
-            bone  = cfg.bone,
-            pos   = cfg.pos,
-            rot   = cfg.rot,
-        } or nil,
     })
+
+    running = false
+    if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
 
     if not done then
         busy = false
