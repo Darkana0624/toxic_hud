@@ -1,7 +1,7 @@
 local Config = require 'config'
 
 -- ============================================================
---  LS HUD — STRESS-ийн эх үүсвэрүүд (client)
+--  Toxic HUD — STRESS-ийн эх үүсвэрүүд (client)
 --
 --  НЭМЭГДЭХ:  машинаар мөргөх / унах (ragdoll) / гэмтэх
 --  ТАЙЛАГДАХ: хурдтай жолоодох (энд), GYM (hooks_server.lua),
@@ -20,13 +20,13 @@ local R = (Config.Stress.relief or {})
 
 local function addStress(amount)
     if amount and amount > 0 then
-        TriggerServerEvent('ls_hud:server:addStress', amount)
+        TriggerServerEvent('toxic_hud:server:addStress', amount)
     end
 end
 
 local function relieveStress(amount)
     if amount and amount > 0 then
-        TriggerServerEvent('ls_hud:server:relieveStress', amount)
+        TriggerServerEvent('toxic_hud:server:relieveStress', amount)
     end
 end
 
@@ -86,7 +86,6 @@ if G.ragdoll and G.ragdoll.enabled then
 
     -- antipunchspam-аас шууд дохио (хамгийн нарийвчлалтай зам)
     RegisterNetEvent('ls_core:client:stumbled', onRagdoll)
-    AddEventHandler('ls_core:client:stumbled', onRagdoll)
 
     -- Ерөнхий ragdoll илрүүлэлт (өндрөөс унах, мотоциклоос нисэх г.м)
     CreateThread(function()
@@ -161,12 +160,13 @@ end
 --  Player(src).state.stress дээр бичдэг. Тэдгээрийг HUD дагаж
 --  шинэчлэхийн тулд statebag-ийг сонсоно.
 -- ============================================================
-AddStateBagChangeHandler('stress', ('player:%s'):format(GetPlayerServerId(PlayerId())),
-    function(_, _, value)
-        if value ~= nil then
-            TriggerEvent('hud:client:UpdateStress', value)
-        end
-    end)
+-- Server ID нь script ачаалах үед хараахан тодорхойгүй байж болох тул
+-- bag-ийг шүүхгүйгээр бүртгэж, handler дотор өөрийн bag-тай тулгана.
+AddStateBagChangeHandler('stress', nil, function(bagName, _, value)
+    if value == nil then return end
+    if bagName ~= ('player:%s'):format(GetPlayerServerId(PlayerId())) then return end
+    TriggerEvent('hud:client:UpdateStress', value)
+end)
 
 -- ============================================================
 --  НЭМЭГДЭХ 4 — Цус алдаж хэвтэх хугацаанд тасралтгүй

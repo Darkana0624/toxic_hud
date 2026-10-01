@@ -1,7 +1,7 @@
 local Config = require 'config'
 
 -- ============================================================
---  LS HUD — ТАМХИ / ВЭЙП (client)
+--  Toxic HUD — ТАМХИ / ВЭЙП (client)
 --
 --  Анимаци, prop, байрлал / эргэлтийн утгууд нь lusty94_smoking-
 --  аас яг хэвээрээ авсан. Ажиллагааг нь ox_inventory + ox_lib
@@ -24,7 +24,7 @@ local function notify(msg, kind)
     lib.notify({ title = 'Тамхи', description = msg, type = kind or 'error' })
 end
 
-RegisterNetEvent('ls_hud:client:useSmoke', function(data)
+RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
     -- ox_inventory нь item нэрийг data.name-аар дамжуулна
     local itemName = type(data) == 'table' and (data.name or data.item) or data
     local cfg = itemName and Config.Smoking.items[itemName]
@@ -35,7 +35,7 @@ RegisterNetEvent('ls_hud:client:useSmoke', function(data)
         return
     end
 
-    local ok, reason, extra = lib.callback.await('ls_hud:server:canSmoke', false, itemName)
+    local ok, reason, extra = lib.callback.await('toxic_hud:server:canSmoke', false, itemName)
     if not ok then
         if reason == 'requires' then
             notify(('Танд %s хэрэгтэй'):format(extra or '...'))
@@ -81,7 +81,7 @@ RegisterNetEvent('ls_hud:client:useSmoke', function(data)
         SetPedArmour(ped, math.min(100, GetPedArmour(ped) + cfg.armour))
     end
 
-    TriggerServerEvent('ls_hud:server:finishSmoke', itemName)
+    TriggerServerEvent('toxic_hud:server:finishSmoke', itemName)
 
     Wait(500)   -- item spam-аас сэргийлэх бага зэргийн саатал
     busy = false

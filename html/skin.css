@@ -1,5 +1,5 @@
 /* =========================================================
-   LS HUD — skin layer (шинэ pill загвар)
+   Toxic HUD — skin layer (шинэ pill загвар)
    style.css-ийн ДАРАА ачаална. script.js-ийн бүх hook
    (data-key, .bar-fill, .sp-*, --hud-scale, --mm-*) хэвээр.
    ========================================================= */
@@ -33,6 +33,7 @@
     --c-thirst: #7a8a5e;
     --c-stress: #a4799c;
     --c-stamina: #c67139;
+    --c-lung: #8fa4c4;
     --c-voice: rgba(255, 255, 255, 0.85);
     --c-voice-on: #9db072;
     --c-engine: #8fa4c4;
@@ -97,7 +98,7 @@ body {
 
 /* ---- Микрофон — Toxic HUD-аас портлосон дөрвөлжин хүрээ ----
    Тойргийн оронд бага зэрэг мэлийсэн дөрвөлжин, нимгэн хүрээтэй,
-   зурмал (stroke) дүрстэй. Ярих үед хүрээ ба дүрс LS HUD-ийн
+   зурмал (stroke) дүрстэй. Ярих үед хүрээ ба дүрс Toxic HUD-ийн
    үндсэн өнгө (--accent) болж тодорно. */
 .status-circle.voice {
     width: 3rem;
@@ -199,6 +200,7 @@ body {
 .status-circle.pill.mini[data-key="thirst"] .bar-fill { background: var(--c-thirst); }
 .status-circle.pill.mini[data-key="stamina"] .bar-fill { background: var(--c-stamina); }
 .status-circle.pill.mini[data-key="stress"]  .bar-fill { background: var(--c-stress); }
+.status-circle.pill.mini[data-key="lung"]    .bar-fill { background: var(--c-lung); }
 
 /* Бага үлдэгдлийн анхааруулга */
 .status-circle.pill.low .bar-fill { background: var(--warn); }
@@ -511,7 +513,7 @@ body.editing .mm-ghost { display: flex; }
    FUEL зураас дээр давхарлаж байсан — энд бүх мөр урсгал (flow)
    дотор байрлана, давхардах боломжгүй.
 
-   Өнгө нь LS HUD-ийн skin хувьсагчдаас (--pill-bg / --accent /
+   Өнгө нь Toxic HUD-ийн skin хувьсагчдаас (--pill-bg / --accent /
    --text-dim / --warn) ирнэ.
    ========================================================= */
 .speedo-wrap[data-style="toxic"] .sp-toxic { display: flex; }

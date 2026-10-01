@@ -26,7 +26,7 @@ end
 -- Нэвтрэх төлөв өөрчлөгдөхөд client.lua-д мэдэгдэнэ (HUD харуулах/нуух)
 local function setLogin(state)
     Framework.loggedIn = state
-    TriggerEvent('lshud:auth', state)
+    TriggerEvent('toxic_hud:auth', state)
 end
 
 -- ===== Framework илрүүлэх =====

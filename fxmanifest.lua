@@ -1,9 +1,9 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name 'LS HUD'
+name 'Toxic HUD'
 author 'LS'
-description 'LS HUD — status / vehicle HUD, minimap байрлал, cinematic mode, stress систем + тамхи-вэйп'
+description 'Toxic HUD — status / vehicle HUD, minimap байрлал, cinematic mode, stress систем + тамхи-вэйп'
 version '2.3.0'
 
 lua54 'yes'
@@ -11,7 +11,6 @@ lua54 'yes'
 shared_script '@ox_lib/init.lua'
 
 client_scripts {
-    'config.lua',
     'client.lua',
     'client/stress.lua',    -- stress-ийн эх үүсвэрүүд (ЖОЛООДЛОГО ОРООГҮЙ)
     'client/smoking.lua',   -- тамхи / вэйп — анимаци + prop
@@ -26,7 +25,7 @@ ui_page 'html/index.html'
 
 files {
     'bridge.lua',   -- client.lua дотор require 'bridge'-ээр ачаалагдана
-    'config.lua',   -- server талаас ч require 'config'-оор уншигдана
+    'config.lua',   -- client / server талаас require 'config'-оор уншигдана
     'html/index.html',
     'html/style.css',
     'html/skin.css',
