@@ -52,7 +52,7 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
     -- Prop / анимацийг өөрсдөө удирдана — ингэснээр prop дээр утаа / гэрэл
     -- залгах боломжтой (lib.progressCircle prop-ийн заагчийг буцаадаггүй).
     local prop
-    if cfg.prop then
+    if cfg.prop and not cfg.scenario then
         local model = joaat(cfg.prop)
         lib.requestModel(model, 5000)
         local c = GetEntityCoords(ped)
@@ -64,7 +64,7 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
     end
 
     local running = true
-    local fx = cfg.fx
+    local fx = not cfg.scenario and cfg.fx or nil
     if fx then
         CreateThread(function()
             lib.requestNamedPtfx('core')
@@ -115,6 +115,11 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
         end)
     end
 
+    if cfg.scenario then
+        ClearPedTasks(ped)
+        TaskStartScenarioInPlace(ped, cfg.scenario, 0, true)
+    end
+
     local done = lib.progressCircle({
         duration    = (cfg.duration or 10) * 1000,
         label       = cfg.label or '...',
@@ -122,10 +127,11 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
         useWhileDead = false,
         canCancel   = true,
         disable     = { move = false, car = false, combat = true },
-        anim        = { dict = cfg.dict, clip = cfg.anim, flag = 49 },
+        anim        = (not cfg.scenario and cfg.dict) and { dict = cfg.dict, clip = cfg.anim, flag = 49 } or nil,
     })
 
     running = false
+    if cfg.scenario then ClearPedTasks(ped) end
     if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
 
     if not done then

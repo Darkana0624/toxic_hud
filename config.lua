@@ -325,18 +325,9 @@ Config.Smoking = {
             stress = 25.0,     -- бууруулах хувь
             armour = 0,        -- lusty94 дээр 10 байсан; хуяг нэмэх нь HUD-д логикгүй
             health = 2,        -- татахад амиас хасах (0 бол хасахгүй)
-            fx = {                      -- утаа / үзүүрийн улаан гэрэл
-                trail  = 'ent_anim_cig_smoke',        -- тамхины үзүүрээс гарах нимгэн утаа
-                exhale = 'ent_anim_cig_exhale_mth',   -- амнаас гарах утаа
-                scale  = 1.0,
-                ember  = true,                        -- үзүүр улаан гэрэлтэнэ
-            },
-            dict = 'amb@world_human_aa_smoke@male@idle_a',
-            anim = 'idle_c',
-            prop = 'prop_cs_ciggy_01',
-            bone = 28422,
-            pos  = vec3(0.0, 0.0, 0.0),
-            rot  = vec3(0.0, 0.0, 0.0),
+            -- Emote: ["smoke"] = { "scenario", "WORLD_HUMAN_SMOKING", "Smoke" }
+            -- Scenario нь өөрийн тамхи (үзүүр улаасах, утаа)-г өөрөө үүсгэдэг.
+            scenario = 'WORLD_HUMAN_SMOKING',
         },
         ['vape'] = {
             label = 'Вэйп татаж байна',
