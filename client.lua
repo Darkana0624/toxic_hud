@@ -21,11 +21,11 @@ end
 --    * Өөр resource дэлгэцийг бүхэлд нь эзэлсэн (NUI focus авсан:
 --      inventory / phone / tablet / menu г.м)
 --    * Гадны script export-оор нуухыг хүссэн (hideHud)
---  Тохиргооны цэс (/lshud) нээлттэй үед нь үргэлж харуулна.
+--  Тохиргооны цэс (/toxichud) нээлттэй үед нь үргэлж харуулна.
 -- ============================================================
 
 local hudVisible    = nil    -- NUI рүү сүүлд илгээсэн төлөв (nil = мэдэгдээгүй)
-local settingsOpen  = false  -- /lshud тохиргооны цэс нээлттэй эсэх
+local settingsOpen  = false  -- /toxichud тохиргооны цэс нээлттэй эсэх
 local externalHidden = false -- гадны script export-оор нуусан эсэх
 local cinematic     = false  -- тоглогч өөрөө түр унтраасан (cinematic mode)
 
@@ -61,7 +61,7 @@ end)
 
 -- ============================================================
 --  Бусад script-д зориулсан export-ууд
---  Жишээ: exports['ls_hud']:hideHud() / exports['ls_hud']:showHud()
+--  Жишээ: exports['toxic_hud']:hideHud() / exports['toxic_hud']:showHud()
 -- ============================================================
 
 exports('hideHud', function()
@@ -158,10 +158,10 @@ end
 
 -- ============================================================
 --  Нэвтрэх төлөв — framework-аас үл хамааран HUD харуулах / нуух
---  (bridge.lua login/logout үед "lshud:auth" event дамжуулна)
+--  (bridge.lua login/logout үед "toxic_hud:auth" event дамжуулна)
 -- ============================================================
 
-AddEventHandler('lshud:auth', function(_)
+AddEventHandler('toxic_hud:auth', function(_)
     -- Нэвтрэх/гарах төлөв өөрчлөгдөхөд төвлөрсөн менежментээр шинэчилнэ
     -- (loggedIn-ийг bridge.lua аль хэдийн тохируулсан байна).
     hudVisible = nil   -- төлвийг дахин баталгаажуулна
@@ -169,11 +169,13 @@ AddEventHandler('lshud:auth', function(_)
 end)
 
 -- ============================================================
---  Status loop (HP / Armor / Hunger / Thirst)
+--  Status loop (HP / Armor / Hunger / Thirst / Stamina / Lung)
 -- ============================================================
 
 CreateThread(function()
     local last = {}
+    local lungMax = (Config.LungCapacity and Config.LungCapacity.maxTime) or 10.0
+    if lungMax <= 0.0 then lungMax = 10.0 end
     while true do
         Wait(Config.UpdateInterval)
         if Framework.loggedIn then
@@ -203,6 +205,21 @@ CreateThread(function()
                 voiceRange = (prox and prox.index) or 2
             end
 
+            -- Уушигны багтаамж: усан доор үлдсэн амьсгалах хугацааг хувиар.
+            -- Дүүрэн + усан дор биш үед (hideWhenFull) nil илгээж нууна.
+            local lung = nil
+            if Config.ShowLungCapacity then
+                local cfgL = Config.LungCapacity or {}
+                local remaining = GetPlayerUnderwaterTimeRemaining(PlayerId())
+                if remaining > lungMax then lungMax = remaining end
+                lung = math.floor(remaining / lungMax * 100 + 0.5)
+                if lung < 0 then lung = 0 elseif lung > 100 then lung = 100 end
+                if cfgL.hideWhenFull ~= false and lung >= 100
+                   and not IsPedSwimmingUnderWater(ped) then
+                    lung = nil
+                end
+            end
+
             local hunger = Config.ShowHunger and Framework.hunger and math.floor(Framework.hunger) or nil
             local thirst = Config.ShowThirst and Framework.thirst and math.floor(Framework.thirst) or nil
             local stress = Config.ShowStress and Framework.stress and math.floor(Framework.stress) or nil
@@ -222,11 +239,11 @@ CreateThread(function()
             if healthPct ~= last.health or armor ~= last.armor or hunger ~= last.hunger
                or thirst ~= last.thirst or stress ~= last.stress or stamina ~= last.stamina
                or talking ~= last.voice or voiceRange ~= last.voiceRange
-               or engineHealth ~= last.engineHealth then
+               or engineHealth ~= last.engineHealth or lung ~= last.lung then
                 last.health, last.armor = healthPct, armor
                 last.hunger, last.thirst, last.stress = hunger, thirst, stress
                 last.stamina, last.voice, last.voiceRange = stamina, talking, voiceRange
-                last.engineHealth = engineHealth
+                last.engineHealth, last.lung = engineHealth, lung
                 sendUI('status', {
                     health = healthPct,
                     armor  = armor,
@@ -237,6 +254,7 @@ CreateThread(function()
                     voice = talking,
                     voiceRange = voiceRange,
                     engineHealth = engineHealth,
+                    lung = lung,
                 })
             end
         end
@@ -504,7 +522,7 @@ end)
 --
 --  ХЯЗГААРЛАЛТ (тоглоомын өөрийнх):
 --    * "Bigmap" (Z товч) хэвээр зүүн доод буланд нээгдэнэ
---    * Үндсэн health / armour arc байрлал зөрнө — гэхдээ LS HUD
+--    * Үндсэн health / armour arc байрлал зөрнө — гэхдээ Toxic HUD
 --      тэдгээрийг Config.HideNativeHealthArmour-оор нуудаг
 -- ============================================================
 
@@ -608,7 +626,7 @@ end
 
 -- ============================================================
 --  GTA-гийн ҮНДСЭН health / armour бар — minimap-ийн доор гарч
---  ирдэг ногоон (амь) ба цэнхэр (хуяг) зураас. LS HUD өөрөө
+--  ирдэг ногоон (амь) ба цэнхэр (хуяг) зураас. Toxic HUD өөрөө
 --  эдгээрийг харуулдаг тул давхардуулахгүйн тулд нууна.
 --
 --  "minimap" scaleform-ийн SETUP_HEALTH_ARMOUR арга:
@@ -646,7 +664,7 @@ if Config.HideNativeHealthArmour then
             tries = tries + 1
         end
         if not HasScaleformMovieLoaded(mm) then
-            print('^3[ls_hud]^7 minimap scaleform ачаалагдсангүй — үндсэн health/armour бар хэвээр үлдэнэ')
+            print('^3[toxic_hud]^7 minimap scaleform ачаалагдсангүй — үндсэн health/armour бар хэвээр үлдэнэ')
             return
         end
 
@@ -762,7 +780,7 @@ end
 --  ЗҮҮН ДЭЭД булангаар. Хоосон объект ирвэл (Reset) тоглоомын анхдагч
 --  байрлал руу буцаана.
 --
---  Байрлал нь бусад HUD элементийн хамт 'lshud:pos' KVP дотор
+--  Байрлал нь бусад HUD элементийн хамт 'toxichud:pos' KVP дотор
 --  хадгалагдана — NUI дахин ачаалагдахдаа энэ callback руу буцааж
 --  илгээдэг тул reconnect хийсний дараа ч хэвээр үлдэнэ.
 -- ------------------------------------------------------------
@@ -795,7 +813,7 @@ if Config.MinimapPosition == 'top-right' then
         elseif args[1] then
             local dx, dy = tonumber(args[1]), tonumber(args[2])
             if not dx or not dy then
-                print('^1[ls_hud]^7 /mmpos <dx> <dy>  |  /mmpos reset  |  /mmpos')
+                print('^1[toxic_hud]^7 /mmpos <dx> <dy>  |  /mmpos reset  |  /mmpos')
                 return
             end
             n.x = (n.x or 0.0) + dx
@@ -804,7 +822,7 @@ if Config.MinimapPosition == 'top-right' then
 
         applyMinimapLayout()
         sendScreenInfo()
-        print(('^2[ls_hud]^7 MinimapNudge = { x = %.4f, y = %.4f }  <- config.lua-д хуулна уу')
+        print(('^2[toxic_hud]^7 MinimapNudge = { x = %.4f, y = %.4f }  <- config.lua-д хуулна уу')
             :format(n.x or 0.0, n.y or 0.0))
     end, false)
 
@@ -865,21 +883,20 @@ end)
 --  байрлал / загвар / нэгжийг SetResourceKvp-ээр найдвартай хадгална.
 -- ============================================================
 
--- Хуучин 'dkhud:' түлхүүрээс шинэ 'lshud:' рүү нэг удаагийн шилжүүлэг.
--- (resource dk_hud -> ls_hud болж нэр солигдсон тул тоглогчийн хадгалсан
---  байрлал / загвар / нэгж алдагдахгүй.)
+-- Хуучин 'lshud:' / 'dkhud:' түлхүүрээс шинэ 'toxichud:' рүү нэг удаагийн
+-- шилжүүлэг (нэр солигдсон тул хадгалсан байрлал / загвар алдагдахгүй).
 local function kvpGet(key)
-    local v = GetResourceKvpString('lshud:' .. key)
+    local v = GetResourceKvpString('toxichud:' .. key)
     if v == nil then
-        v = GetResourceKvpString('dkhud:' .. key)
-        if v ~= nil then SetResourceKvp('lshud:' .. key, v) end
+        v = GetResourceKvpString('lshud:' .. key) or GetResourceKvpString('dkhud:' .. key)
+        if v ~= nil then SetResourceKvp('toxichud:' .. key, v) end
     end
     return v
 end
 
 RegisterNUICallback('saveSetting', function(data, cb)
     if data and data.key then
-        local k = 'lshud:' .. data.key
+        local k = 'toxichud:' .. data.key
         if data.value == nil or data.value == '' then
             DeleteResourceKvp(k)
         else
@@ -911,17 +928,16 @@ RegisterNUICallback('loadSettings', function(_, cb)
     })
 end)
 
-RegisterCommand('lshud', function()
+-- Тохиргоо зөвхөн /toxichud командаар нээгдэнэ (товчны холбоосгүй).
+RegisterCommand('toxichud', function()
     settingsOpen = true
     refreshHudVisibility()   -- тохиргоо нээх үед HUD-г заавал харуулна
     SetNuiFocus(true, true)
     sendUI('openSettings', {})
 end, false)
 
-RegisterKeyMapping('lshud', 'LS HUD тохиргоо нээх', 'keyboard', 'F7')
-
 -- Чат санал болголт
-TriggerEvent('chat:addSuggestion', '/lshud', 'LS HUD-ийн байрлалын тохиргоог нээх')
+TriggerEvent('chat:addSuggestion', '/toxichud', 'Toxic HUD-ийн тохиргоог нээх')
 
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() then

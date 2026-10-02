@@ -25,7 +25,7 @@ Config.Language = 'en'
 -- HUD-ийн анхдагч хэмжээ (масштаб).
 -- HUD нь дэлгэцийн нягтрал/дүрсний харьцаанд автоматаар тохирдог (800x600-оос
 -- 4K хүртэл, 4:3 / 16:10 / 16:9 / 21:9 / 32:9). Энэ утга нь тэрхүү авто
--- масштабын ДЭЭР үржигдэх ерөнхий коэффициент бөгөөд тоглогч /lshud цэснээс
+-- масштабын ДЭЭР үржигдэх ерөнхий коэффициент бөгөөд тоглогч /toxichud цэснээс
 -- өөрийн хэмжээг (70% - 150%) сонговол түүнийг нь давуу эрхтэйгээр хэрэглэнэ.
 Config.HudScale = 1.0
 
@@ -35,6 +35,18 @@ Config.ShowThirst = true
 Config.ShowStress = true    -- Stress систем (доорх Config.Stress) идэвхтэй тул асаалттай
 Config.ShowStamina = true   -- Гүйх тэнхээ (stamina)
 Config.ShowVoice = true     -- Микрофон / voice range (pma-voice)
+Config.ShowLungCapacity = true  -- Уушигны багтаамж (усан доор амьсгалах хугацаа)
+
+-- Уушигны багтаамж (LUNG CAPACITY)
+--   maxTime      -> бүрэн уушигтай үед усан доор амьсгалах секунд. GTA-гийн
+--                   анхдагч нь 10 сек. Өөр resource (SetPedMaxTimeUnderwater г.м)
+--                   үүнийг нэмэгдүүлдэг бол энд ижил утга өгнө; бодит үлдэгдэл
+--                   үүнээс их гарвал HUD өөрөө дээд хязгаарыг автоматаар өргөтгөнө.
+--   hideWhenFull -> уушиг дүүрэн, усан дор биш үед зурвасыг нууна
+Config.LungCapacity = {
+    maxTime      = 10.0,
+    hideWhenFull = true,
+}
 
 -- Speedometer-ийг зөвхөн машинд харуулах
 Config.ShowSpeedoOnlyInVehicle = true
@@ -143,7 +155,7 @@ Config.MinimapOverride = {
 -- ============================================================
 --  GTA-гийн ҮНДСЭН health / armour бар
 --  Тоглоомын анхны ногоон (амь) ба цэнхэр (хуяг) зураас minimap-ийн
---  доор гарч ирдэг. LS HUD өөрөө амь / хуягийг харуулдаг тул
+--  доор гарч ирдэг. Toxic HUD өөрөө амь / хуягийг харуулдаг тул
 --  давхардуулахгүйн тулд нууна.
 --  Нуулт нь "minimap" scaleform-ийн SETUP_HEALTH_ARMOUR аргаар
 --  хийгддэг тул minimap.gfx файл солих шаардлагагүй.
@@ -234,7 +246,7 @@ Config.Stress = {
 
         -- ХООЛ / АРХИ — qbx_consumables өөрөө stress бууруулдаг
         --       (config.lua дотор stressRelief талбартай) бөгөөд утгыг
-        --       statebag руу бичдэг. LS HUD түүнийг шууд дагана —
+        --       statebag руу бичдэг. Toxic HUD түүнийг шууд дагана —
         --       нэмэлт код шаардахгүй.
 
         -- ТАМХИ / ВЭЙП — доорх Config.Smoking хэсэгт.
@@ -313,12 +325,9 @@ Config.Smoking = {
             stress = 25.0,     -- бууруулах хувь
             armour = 0,        -- lusty94 дээр 10 байсан; хуяг нэмэх нь HUD-д логикгүй
             health = 2,        -- татахад амиас хасах (0 бол хасахгүй)
-            dict = 'amb@world_human_aa_smoke@male@idle_a',
-            anim = 'idle_c',
-            prop = 'prop_cs_ciggy_01',
-            bone = 28422,
-            pos  = vec3(0.0, 0.0, 0.0),
-            rot  = vec3(0.0, 0.0, 0.0),
+            -- Emote: ["smoke"] = { "scenario", "WORLD_HUMAN_SMOKING", "Smoke" }
+            -- Scenario нь өөрийн тамхи (үзүүр улаасах, утаа)-г өөрөө үүсгэдэг.
+            scenario = 'WORLD_HUMAN_SMOKING',
         },
         ['vape'] = {
             label = 'Вэйп татаж байна',
@@ -329,6 +338,12 @@ Config.Smoking = {
             stress = 25.0,
             armour = 0,
             health = 0,
+            fx = {
+                exhale = 'ent_anim_cig_exhale_mth',
+                scale  = 2.2,                         -- вэйпийн утаа өтгөн
+                ember  = false,
+                led    = true,                        -- вэйпийн цэнхэр LED гэрэл
+            },
             dict = 'amb@world_human_smoking@male@male_b@base',
             anim = 'base',
             prop = 'ba_prop_battle_vape_01',

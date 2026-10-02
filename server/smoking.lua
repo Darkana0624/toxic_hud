@@ -1,7 +1,7 @@
 local Config = require 'config'
 
 -- ============================================================
---  LS HUD — ТАМХИ / ВЭЙП (server)
+--  Toxic HUD — ТАМХИ / ВЭЙП (server)
 --
 --  Item-ийн эзэмшил шалгах, зарцуулах, хайрцгаас ширхэг гаргах
 --  ажиллагаа. Анимаци / prop нь client талд.
@@ -16,7 +16,7 @@ if not (Config.Smoking and Config.Smoking.enabled) then return end
 local ox = GetResourceState('ox_inventory') == 'started'
 
 if not ox then
-    print('^3[ls_hud]^7 ox_inventory эхлээгүй тул тамхины систем идэвхгүй')
+    print('^3[toxic_hud]^7 ox_inventory эхлээгүй тул тамхины систем идэвхгүй')
     return
 end
 
@@ -27,7 +27,7 @@ end
 ---Item ашиглах хүсэлтийг БҮРЭН server талд шалгаж гүйцэтгэнэ.
 ---Клиент зөвхөн "би энэ item-ийг ашиглаж дууслаа" гэж мэдэгдэнэ;
 ---үлдэгдэл, шаардлагатай item, stress — бүгд эндээс шийдэгдэнэ.
-lib.callback.register('ls_hud:server:canSmoke', function(src, itemName)
+lib.callback.register('toxic_hud:server:canSmoke', function(src, itemName)
     local cfg = Config.Smoking.items[itemName]
     if not cfg then return false, 'unknown' end
     if count(src, itemName) < 1 then return false, 'missing' end
@@ -39,7 +39,7 @@ lib.callback.register('ls_hud:server:canSmoke', function(src, itemName)
     return true
 end)
 
-RegisterNetEvent('ls_hud:server:finishSmoke', function(itemName)
+RegisterNetEvent('toxic_hud:server:finishSmoke', function(itemName)
     local src = source
     local cfg = Config.Smoking.items[itemName]
     if not cfg then return end
@@ -47,6 +47,14 @@ RegisterNetEvent('ls_hud:server:finishSmoke', function(itemName)
     -- Дахин шалгана — progressCircle-ийн хугацаанд item алга болсон байж болно
     if count(src, itemName) < 1 then return end
     if cfg.requires and count(src, cfg.requires.item) < 1 then return end
+
+    -- Хайрцаг задлахад ширхэг багтахгүй бол хайрцгийг АЛДАЛГҮЙ үлдээнэ
+    if cfg.returns and not exports.ox_inventory:CanCarryItem(src, cfg.returns.item, cfg.returns.amount or 1) then
+        TriggerClientEvent('ox_lib:notify', src, {
+            title = 'Тамхи', description = 'Таны шуудай дүүрсэн байна', type = 'error',
+        })
+        return
+    end
 
     -- Үндсэн item-ийг зарцуулах (вэйп өөрөө үлдэнэ)
     if not cfg.keepItem then

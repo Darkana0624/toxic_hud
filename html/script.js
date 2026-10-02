@@ -5,11 +5,11 @@ const RING_270 = 414.7; // 270/360 * RING_LEN
 let useMPH = true;
 // FiveM NUI frame-д суулгасан GetParentResourceName() нь бодит resource нэрийг
 // найдвартай буцаадаг тул config message-ийн timing-аас хамаарахгүй. Хэрэв ямар
-// нэг шалтгаанаар байхгүй бол folder нэр рүү (ls_hud) fallback хийнэ. config
+// нэг шалтгаанаар байхгүй бол folder нэр рүү (toxic_hud) fallback хийнэ. config
 // message ирвэл дахин шинэчлэгдэнэ.
 let resourceName = (typeof GetParentResourceName === 'function')
     ? GetParentResourceName()
-    : 'ls_hud';
+    : 'toxic_hud';
 
 // ---- NUI callback руу илгээх ----
 function post(name, data) {
@@ -153,7 +153,7 @@ function setLanguage(lang, save = true) {
     if (!I18N[lang]) lang = 'en';
     currentLang = lang;
     if (save) {
-        localStorage.setItem('lshud_lang', lang);
+        localStorage.setItem('toxichud_lang', lang);
         persist('lang', lang);
     }
 
@@ -282,7 +282,7 @@ function setHudScale(v, save = true) {
     const out = document.getElementById('scale-val');
     if (out) out.textContent = Math.round(userScale * 100) + '%';
     if (save) {
-        localStorage.setItem('lshud_scale', String(userScale));
+        localStorage.setItem('toxichud_scale', String(userScale));
         persist('scale', String(userScale));
     }
     computeLayout();
@@ -298,7 +298,7 @@ window.addEventListener('resize', () => {
 // =========================================================
 //  HUD EDITOR — элемент зөөх / байрлал хадгалах
 // =========================================================
-const POS_KEY = 'lshud_pos';
+const POS_KEY = 'toxichud_pos';
 let editing = false;
 let dragEl = null, dragDX = 0, dragDY = 0;
 
@@ -369,10 +369,10 @@ function placeAt(el, p) {
 function restoreFromKvp(kvp) {
     if (!kvp) return;
     if (kvp.pos)   localStorage.setItem(POS_KEY, kvp.pos);
-    if (kvp.unit)  localStorage.setItem('lshud_unit', kvp.unit);
-    if (kvp.lang)  localStorage.setItem('lshud_lang', kvp.lang);
-    if (kvp.scale) localStorage.setItem('lshud_scale', kvp.scale);
-    if (kvp.statusLayout) localStorage.setItem('lshud_status', kvp.statusLayout);
+    if (kvp.unit)  localStorage.setItem('toxichud_unit', kvp.unit);
+    if (kvp.lang)  localStorage.setItem('toxichud_lang', kvp.lang);
+    if (kvp.scale) localStorage.setItem('toxichud_scale', kvp.scale);
+    if (kvp.statusLayout) localStorage.setItem('toxichud_status', kvp.statusLayout);
 
     // Байрлал / загвар / нэгж / хэлийг дахин хэрэглэх
     applyPositions();
@@ -642,7 +642,7 @@ function updateAir(d) {
 }
 function setUnit(mph) {
     useMPH = mph;
-    localStorage.setItem('lshud_unit', mph ? 'mph' : 'kmh');
+    localStorage.setItem('toxichud_unit', mph ? 'mph' : 'kmh');
     persist('unit', mph ? 'mph' : 'kmh');
     document.querySelectorAll('#unit-seg button')
         .forEach((b) => b.classList.toggle('active', (b.dataset.unit === 'mph') === mph));
@@ -656,7 +656,7 @@ function setStatusLayout(v, save = true) {
     document.querySelectorAll('#status-seg button')
         .forEach((b) => b.classList.toggle('active', b.dataset.status === statusLayout));
     if (save) {
-        localStorage.setItem('lshud_status', statusLayout);
+        localStorage.setItem('toxichud_status', statusLayout);
         persist('statusLayout', statusLayout);
     }
     computeLayout();
@@ -683,11 +683,11 @@ function pullSettings(cfg) {
         const lang   = (cfg && cfg.lang   !== undefined) ? cfg.lang   : kvp.cfgLang;
         const scale  = (cfg && cfg.scale  !== undefined) ? cfg.scale  : kvp.cfgScale;
 
-        if (!localStorage.getItem('lshud_unit') && useMph !== undefined && useMph !== null) {
+        if (!localStorage.getItem('toxichud_unit') && useMph !== undefined && useMph !== null) {
             setUnit(useMph === true || useMph === 'true');
         }
-        if (!localStorage.getItem('lshud_lang') && I18N[lang]) setLanguage(lang, false);
-        if (!localStorage.getItem('lshud_scale') && scale) setHudScale(scale, false);
+        if (!localStorage.getItem('toxichud_lang') && I18N[lang]) setLanguage(lang, false);
+        if (!localStorage.getItem('toxichud_scale') && scale) setHudScale(scale, false);
 
         computeLayout();   // minimap-ийн шинэ тэгш өнцөгтөөр хүрээг байрлуулна
     }).catch(() => {});
@@ -762,13 +762,13 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('DOMContentLoaded', () => {
     // Хадгалсан байрлал / загвар / нэгж / хэмжээг сэргээх
-    setHudScale(localStorage.getItem('lshud_scale') || 1, false);   // computeLayout-г дуудна
+    setHudScale(localStorage.getItem('toxichud_scale') || 1, false);   // computeLayout-г дуудна
     applyPositions();
     refreshStyle();
-    setStatusLayout(localStorage.getItem('lshud_status') || 'frame', false);
-    const savedUnit = localStorage.getItem('lshud_unit');
+    setStatusLayout(localStorage.getItem('toxichud_status') || 'frame', false);
+    const savedUnit = localStorage.getItem('toxichud_unit');
     setUnit(savedUnit ? savedUnit === 'mph' : useMPH);
-    const savedLang = localStorage.getItem('lshud_lang');
+    const savedLang = localStorage.getItem('toxichud_lang');
     setLanguage(I18N[savedLang] ? savedLang : 'en', false);
 
     // Хадгалсан тохиргоо + minimap-ийн тэгш өнцөгтийг client-ээс шууд татна
@@ -1046,6 +1046,13 @@ window.addEventListener('message', (e) => {
             if (d.stamina !== undefined && d.stamina !== null) {
                 showCircle('stamina', true); setCircle('stamina', d.stamina);
             } else showCircle('stamina', false);
+
+            // Lung capacity (усан доор амьсгалах хугацаа)
+            if (d.lung !== undefined && d.lung !== null) {
+                showCircle('lung', true); setCircle('lung', d.lung);
+                document.querySelectorAll('.status-circle[data-key="lung"]')
+                    .forEach((e) => e.classList.toggle('low', d.lung <= 25));
+            } else showCircle('lung', false);
 
             // Voice (microphone) — talking үед гэрэлтэнэ, range badge харуулна
             const voiceEl = document.querySelector('.status-circle[data-key="voice"]');

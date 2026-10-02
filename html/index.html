@@ -41,7 +41,7 @@
     <!-- ============ STATUS (зүүн доод) — pill загвар ============ -->
     <div id="status" class="status-wrap">
         <!-- Микрофон — Toxic HUD-аас портлосон дөрвөлжин хүрээ.
-             Ярих үед хүрээ ба дүрс LS HUD-ийн үндсэн өнгө (--accent) болно. -->
+             Ярих үед хүрээ ба дүрс Toxic HUD-ийн үндсэн өнгө (--accent) болно. -->
         <div class="status-circle voice" data-key="voice" id="sc-voice" data-movable>
             <svg class="voice-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="2" width="6" height="11" rx="3"/>
@@ -64,6 +64,12 @@
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><span>STAMINA</span></div>
         </div>
+        <!-- Lung capacity — усан доор амьсгалах хугацаа. Зөвхөн усан дор
+             (эсвэл уушиг сэргэж дуустал) харагдана. -->
+        <div class="status-circle pill mini" data-key="lung" id="sc-lung" data-movable style="display:none">
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="15" r="4.5"/><circle cx="16.5" cy="7.5" r="2.5"/><circle cx="17" cy="16.5" r="1.5"/></svg><span>LUNG</span></div>
+        </div>
         </div>
 
         <div class="pill-col">
@@ -76,7 +82,7 @@
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.3 6 10a6 6 0 0 1-12 0c0-3.7 6-10 6-10z"/></svg><span>THIRST</span></div>
         </div>
         <!-- Stress — hunger / thirst / stamina-тай ижил жижиг pill.
-             Утгыг ls_hud-ийн stress систем (client/stress.lua +
+             Утгыг toxic_hud-ийн stress систем (client/stress.lua +
              server/stress.lua) удирдана. -->
         <div class="status-circle pill mini" data-key="stress" id="sc-stress" data-movable style="display:none">
             <div class="bar-track"><div class="bar-fill"></div></div>
@@ -153,7 +159,7 @@
 
         <!-- ===== Settings panel ===== -->
         <div class="editor-panel" id="settings-panel">
-            <div class="editor-logo">LS<span>HUD</span></div>
+            <div class="editor-logo">TOXIC<span>HUD</span></div>
             <div class="editor-title" data-i18n="title">Тохиргоо</div>
 
             <div class="setting-group">

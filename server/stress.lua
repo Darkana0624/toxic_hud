@@ -1,7 +1,7 @@
 local Config = require 'config'
 
 -- ============================================================
---  LS HUD — STRESS СИСТЕМ (server)
+--  Toxic HUD — STRESS СИСТЕМ (server)
 --
 --  Хадгалалт:
 --    1) qbx_core metadata.stress  — тоглогчтой хамт DB-д үлдэнэ
@@ -87,11 +87,11 @@ exports('AddStress',     function(src, v) return addStress(src, v) end)
 exports('RelieveStress', function(src, v) return relieveStress(src, v) end)
 
 -- ---- Эвентүүд ----
-RegisterNetEvent('ls_hud:server:addStress', function(amount)
+RegisterNetEvent('toxic_hud:server:addStress', function(amount)
     addStress(source, amount)
 end)
 
-RegisterNetEvent('ls_hud:server:relieveStress', function(amount)
+RegisterNetEvent('toxic_hud:server:relieveStress', function(amount)
     relieveStress(source, amount)
 end)
 
