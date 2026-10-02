@@ -2,8 +2,8 @@ local Config = require 'config'
 
 -- ============================================================
 --  Framework bridge — qbx_core / qb-core / es_extended / standalone
---  client.lua энэ нэгдсэн `Framework` global хүснэгтийг ашиглана.
---  Илрүүлэлт автомат (Config.Framework = 'auto') эсвэл гар тохиргоо.
+--  client.lua uses this unified `Framework` table.
+--  Detection is automatic (Config.Framework = 'auto') or manually configured.
 -- ============================================================
 
 local Framework = {
@@ -23,13 +23,13 @@ local function started(res)
     return s == 'started' or s == 'starting'
 end
 
--- Нэвтрэх төлөв өөрчлөгдөхөд client.lua-д мэдэгдэнэ (HUD харуулах/нуух)
+-- Notify client.lua when the login state changes (show / hide the HUD)
 local function setLogin(state)
     Framework.loggedIn = state
     TriggerEvent('toxic_hud:auth', state)
 end
 
--- ===== Framework илрүүлэх =====
+-- ===== Framework detection =====
 local fw = Config.Framework
 if not fw or fw == 'auto' then
     if started('qbx_core') then fw = 'qbx'
@@ -39,7 +39,7 @@ if not fw or fw == 'auto' then
 end
 Framework.name = fw
 
--- qb / qbx HUD-ууд дамжуулдаг нийтлэг needs event-ууд
+-- Common needs events that qb / qbx HUDs pass around
 local function registerNeedEvents()
     RegisterNetEvent('hud:client:UpdateNeeds', function(h, t)
         if h ~= nil then Framework.hunger = math.floor(h + 0.5) end
@@ -50,7 +50,7 @@ local function registerNeedEvents()
     end)
 end
 
--- qb / qbx PlayerData бүтэц ижил тул нэг applier
+-- qb / qbx PlayerData has the same structure, so one applier is enough
 local function applyQbData(pd)
     if not pd then return end
     Framework.cash  = (pd.money and pd.money.cash) or Framework.cash
@@ -82,8 +82,8 @@ if fw == 'qbx' then
     end)
     registerNeedEvents()
 
-    -- Аль хэдийн нэвтэрсэн (resource restart) эсвэл OnPlayerLoaded event-ийг
-    -- алдсан тохиолдлыг барих polling — statebag бэлэн болмогц тогтооно.
+    -- Polling to catch the case where the player is already logged in
+    -- (resource restart) or the OnPlayerLoaded event was missed - set as soon as the statebag is ready.
     CreateThread(function()
         while not Framework.loggedIn do
             if LocalPlayer.state.isLoggedIn then
@@ -162,7 +162,7 @@ elseif fw == 'esx' then
         Framework.grade = job.grade_label or Framework.grade
     end)
 
-    -- Hunger / thirst (esx_status байгаа бол, утга 0..1,000,000)
+    -- Hunger / thirst (if esx_status is present, values 0..1,000,000)
     AddEventHandler('esx_status:onTick', function(data)
         for _, st in pairs(data) do
             local pct = math.floor((st.val or 0) / 10000 + 0.5)
@@ -182,11 +182,11 @@ elseif fw == 'esx' then
     end)
 
 -- =========================================================
---  Standalone (framework байхгүй)
+--  Standalone (no framework)
 -- =========================================================
 else
-    -- Нэвтрэх систем байхгүй тул HUD шууд идэвхтэй. Мөнгө / job / needs
-    -- байхгүй (статусын дугуйнууд nil үед автоматаар нуугдана).
+    -- There is no login system, so the HUD is active immediately. Money / job / needs
+    -- are unavailable (status circles hide automatically when nil).
     Framework.loggedIn = true
 end
 

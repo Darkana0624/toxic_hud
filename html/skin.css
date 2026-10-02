@@ -1,7 +1,7 @@
 /* =========================================================
-   Toxic HUD — skin layer (шинэ pill загвар)
-   style.css-ийн ДАРАА ачаална. script.js-ийн бүх hook
-   (data-key, .bar-fill, .sp-*, --hud-scale, --mm-*) хэвээр.
+      Toxic HUD - skin layer (new pill style)
+      Loaded AFTER style.css. All script.js hooks
+      (data-key, .bar-fill, .sp-*, --hud-scale, --mm-*) remain.
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800;900&display=swap');
@@ -13,14 +13,14 @@
     --shadow: none;
     --radius: 1rem;
 
-    /* HUD-ийн үндсэн зөөлөн хар шил */
+    /* HUD's main soft black glass */
     --pill-bg: rgba(20, 22, 20, 0.60);
     --pill-bg-soft: rgba(20, 22, 20, 0.50);
     --pill-shadow: 0 0.1875rem 0.75rem rgba(0, 0, 0, 0.40);
 
     --text: #ffffff;
     --text-dim: rgba(255, 255, 255, 0.55);
-    --ink: #141614;                 /* цагаан дүүргэлт дээрх бичиг */
+    --ink: #141614;                 /* text on a white fill */
 
     --accent: #c67139;              /* terracotta */
     --accent-2: #7a8a5e;            /* sage */
@@ -47,7 +47,7 @@ body {
     color: var(--text);
 }
 
-/* Хуучин хүрээ / карт бүрийг тунгалаг болгоно (шинэ pill-үүд өөрсдөө дэвсгэртэй) */
+/* Make every old frame / card transparent (the new pills have their own background) */
 .info-wrap,
 .street-wrap,
 .speedo-wrap .sp,
@@ -61,7 +61,7 @@ body {
     backdrop-filter: none !important;
 }
 
-/* Хуучин minimap-ийн хүрээ ба гудамжны нэр / компас — шинэ загварт хэрэггүй */
+/* Old minimap frame and street name / compass - not needed in the new style */
 .status-frame,
 .street-wrap { display: none !important; }
 
@@ -69,7 +69,7 @@ body {
 @keyframes hudTalk { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
 
 /* =========================================================
-   STATUS — зүүн доод: voice тойрог + HEALTH/HUNGER, ARMOR/THIRST
+      STATUS - bottom left: voice circle + HEALTH/HUNGER, ARMOR/THIRST
    ========================================================= */
 .status-wrap {
     left: calc(var(--safe-x) + 1.75rem) !important;
@@ -89,17 +89,17 @@ body {
     gap: 0.625rem;
 }
 
-/* style.css-ийн `.status-circle svg` нь тойргийн ринг svg-д зориулж
-   rotate(-90deg) өгдөг. Pill болон микрофоны дүрсний svg-үүд тэр
-   ринг биш тул эргэлтийг нь ЗААВАЛ цуцлана — эс бөгөөс хажуу тийшээ
-   хэвтэж харагдана. (.icon svg дээр аль хэдийн ийм дүрэм байсан.) */
+/* style.css's `.status-circle svg` applies rotate(-90deg) for the circle ring svg.
+      The pill and microphone icon svgs are not rings, so the rotation MUST
+      be cancelled - otherwise they appear lying sideways.
+      (The .icon svg already had such a rule.) */
 .status-circle .pill-ico,
 .status-circle .voice-ico { transform: none; }
 
-/* ---- Микрофон — Toxic HUD-аас портлосон дөрвөлжин хүрээ ----
-   Тойргийн оронд бага зэрэг мэлийсэн дөрвөлжин, нимгэн хүрээтэй,
-   зурмал (stroke) дүрстэй. Ярих үед хүрээ ба дүрс Toxic HUD-ийн
-   үндсэн өнгө (--accent) болж тодорно. */
+/* ---- Microphone - square frame ported from Toxic HUD ----
+      Instead of a circle, a slightly rounded square with a thin border
+      and a stroked icon. While talking the frame and icon are highlighted in
+      Toxic HUD's main color (--accent). */
 .status-circle.voice {
     width: 3rem;
     height: 3rem;
@@ -128,9 +128,9 @@ body {
     font-weight: 800;
 }
 
-/* ---- Pill бар (HEALTH / ARMOR) ---- */
-/* Өндөр нь 50% нарийсгасан (3.25rem -> 1.625rem). Өргөн хэвээр.
-   Дотор дахь дүрс / бичгийг ч багасгаж багтаалаа. */
+/* ---- Pill bar (HEALTH / ARMOR) ---- */
+/* Height reduced by 50% (3.25rem -> 1.625rem). Width unchanged.
+      The icon / text inside is shrunk to fit as well. */
 .status-circle.pill {
     position: relative;
     width: 12.5rem;
@@ -159,8 +159,8 @@ body {
     transition: width 0.3s ease;
 }
 
-/* Хоёр давхар шошго: track дээр цагаан, дүүргэлт дотор хар —
-   хэдэн хувь ч байсан бичиг үргэлж уншигдана. */
+/* Two-layer label: white on the track, black inside the fill -
+      the text is always readable at any percentage. */
 .status-circle.pill .pill-face {
     position: absolute;
     left: 0; top: 0; bottom: 0;
@@ -182,8 +182,8 @@ body {
 .status-circle.pill .on-track { color: #ffffff; z-index: 1; }
 .status-circle.pill .on-fill  { color: var(--ink); z-index: 2; }
 
-/* ---- Жижиг pill (HUNGER / THIRST) ---- */
-/* Жижиг pill-ийг ч 50% нарийсгасан (1.875rem -> 0.9375rem) */
+/* ---- Small pill (HUNGER / THIRST) ---- */
+/* The small pill is also reduced by 50% (1.875rem -> 0.9375rem) */
 .status-circle.pill.mini {
     width: 8.25rem;
     height: 0.9375rem;
@@ -202,11 +202,11 @@ body {
 .status-circle.pill.mini[data-key="stress"]  .bar-fill { background: var(--c-stress); }
 .status-circle.pill.mini[data-key="lung"]    .bar-fill { background: var(--c-lung); }
 
-/* Бага үлдэгдлийн анхааруулга */
+/* Low-remaining warning */
 .status-circle.pill.low .bar-fill { background: var(--warn); }
 
 /* =========================================================
-   INFO (зүүн дээд) — ID / цаг / ажил / бэлэн мөнгө / банк
+      INFO (top left) - ID / time / job / cash / bank
    ========================================================= */
 .info-wrap { gap: 0.5625rem; text-shadow: 0 0.125rem 0.4375rem rgba(0, 0, 0, 0.6); }
 .info-chip {
@@ -237,13 +237,13 @@ body {
 .info-chip.bank .mini { fill: var(--accent-2); }
 
 /* =========================================================
-   SPEEDOMETER — баруун доод. Бүх загвар нэг өнгө зүстэй:
-   хар шил карт, цагаан тоо, terracotta RPM, sage FUEL,
-   хөх-саарал ENGINE.
+      SPEEDOMETER - bottom right. All styles share one color scheme:
+      black glass card, white numbers, terracotta RPM, sage FUEL,
+      blue-gray ENGINE.
    ========================================================= */
 .speedo-wrap .sp { position: relative; }
 
-/* Заагч гэрлүүд (бүслүүр / хөдөлгүүр / гэрэл / түлш) */
+/* Indicator lights (seatbelt / engine / lights / fuel) */
 .sp .tells-row { display: flex; gap: 0.625rem; justify-content: flex-end; margin-bottom: 0.75rem; }
 .sp .tells-row .ico {
     width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center;
@@ -257,13 +257,13 @@ body {
 .sp .tells-row .sp-engine.off svg,
 .sp .tells-row .sp-fuel-ico.low svg { fill: var(--warn); animation: auBlink 1s steps(1, end) infinite; }
 
-/* ---- Хөдөлгүүрийн эвдрэл — картын доторх сүүлийн зураас ----
-   ЧУХАЛ: markup дээр энэ элемент `class="dmg status-circle"` гэж бичигдсэн
-   тул style.css-ийн `.status-circle` дүрмээс 2.875rem өндөр ӨВЛӨНӨ. Тэр
-   өндөр нь доторх шошго + зураасны бодит өндрөөс (~1.5rem) хамаагүй том
-   учир absolute байрлалтай хайрцаг дээшээ сунаж, FUEL зураас дээр давхарлаж
-   байв. width-ийг доор дарж бичсэн ч height-ийг дарж бичээгүй байсан нь
-   алдааны шалтгаан. */
+/* ---- Engine damage - the last bar inside the card ----
+      IMPORTANT: this element is written in the markup as `class="dmg status-circle"`,
+      so the 2.875rem height from style.css's `.status-circle` rule OVERRIDES it. That
+      height is far larger than the real height of the label + bar inside (~1.5rem),
+      so the absolutely positioned box stretched upward and overlapped the FUEL bar.
+      width was overridden below but height was not, which was
+      the cause of the bug. */
 .speedo-wrap .sp > .dmg {
     position: absolute;
     right: 1.75rem;
@@ -300,7 +300,7 @@ body {
 
 .sp-petrol, .sp-diesel, .sp-heli { transform: scale(var(--sp-fit, 1)); transform-origin: bottom right; }
 
-/* ---- PETROL: том тоо + баруун багана ---- */
+/* ---- PETROL: big number + right column ---- */
 .sp-petrol .pt-main {
     display: flex;
     align-items: flex-end;
@@ -313,10 +313,10 @@ body {
 .sp-petrol .pt-speedwrap { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
 .sp-petrol .pt-speed { font-size: 4.75rem; line-height: 0.82; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
 .sp-petrol .pt-unit { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.24em; color: rgba(255, 255, 255, 0.62); }
-/* padding-bottom нь доор absolute байрлах ENG зураасанд зай нөөцөлнө.
-   2.375rem нь хүрэлцэхгүй байсан (ENG хайрцаг ~1.64rem + bottom 1.25rem
-   = 2.89rem) тул FUEL зураас дээр давхарлаж байв. sp-diesel-тэй ижил
-   3.25rem болгов. */
+/* padding-bottom reserves room for the absolutely positioned ENG bar below.
+      2.375rem was not enough (ENG box ~1.64rem + bottom 1.25rem
+      = 2.89rem), so it overlapped the FUEL bar. Set to 3.25rem, the same as
+      sp-diesel. */
 .sp-petrol .pt-side { display: flex; flex-direction: column; gap: 0.625rem; width: 11.875rem; padding-bottom: 3.25rem; }
 .sp-petrol .pt-gear {
     align-self: flex-start; padding: 0.25rem 0.875rem 0.3125rem; border-radius: 999px;
@@ -360,7 +360,7 @@ body {
 .sp-diesel .ds-fuel .sp-fuel-bar { height: 100%; border-radius: 999px; background: var(--accent-2); transition: width 0.4s ease; }
 .sp-diesel > .dmg { right: 1.75rem; bottom: 1.25rem; width: 12rem; }
 
-/* ---- HELI: ротор ring ---- */
+/* ---- HELI: rotor ring ---- */
 .sp-heli { position: relative; width: 15rem; height: 15rem; }
 .sp-heli .he-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sp-heli .he-ring circle { fill: none; stroke-linecap: round; }
@@ -390,11 +390,11 @@ body {
 .speedo-wrap[data-style="diesel"] .sp-diesel { display: block; }
 .speedo-wrap[data-style="heli"]   .sp-heli   { display: block; }
 
-/* ---- Үлдсэн загварууд — ижил өнгө зүс ---- */
+/* ---- Remaining styles - same color scheme ---- */
 .sp-bike { font-family: var(--font-body) !important; }
-/* Доод padding нь ENG зураасанд зай нөөцөлнө (petrol / diesel-тэй ижил
-   3.25rem). Өмнө нь 1rem байсан тул зураас картын доод агуулга дээр
-   давхарлаж байв. */
+/* Bottom padding reserves room for the ENG bar (same 3.25rem as
+      petrol / diesel). It used to be 1rem, so the bar overlapped
+      the card's bottom content. */
 .sp-bike .bike-body, .sp-moto .moto-body, .sp-air .av-panel, .sp-ev .ev-card {
     padding: 1rem 1.25rem 3.25rem;
     border-radius: 2rem;
@@ -417,7 +417,7 @@ body {
 .sp-moto .moto-tell.on, .sp-moto .moto-tell.blink { color: var(--accent-2) !important; }
 
 /* =========================================================
-   SETTINGS панел — Organic (cream) хуудас
+      SETTINGS panel - Organic (cream) sheet
    ========================================================= */
 .editor-panel {
     background: rgba(245, 234, 216, 0.97) !important;
@@ -433,7 +433,7 @@ body {
 .setting-label { color: rgba(32, 30, 29, 0.55) !important; letter-spacing: 0.16em; font-weight: 800; }
 .editor-foot { color: rgba(32, 30, 29, 0.5) !important; }
 
-/* Status layout сонголт шинэ загварт хамаарахгүй болсон */
+/* The status layout choice no longer applies to the new style */
 #status-seg, #status-seg + *, .setting-group:has(#status-seg) { display: none !important; }
 
 .editor-btn, .seg button, .lang-seg button, .scale-reset {
@@ -473,14 +473,14 @@ body.editing [data-movable].editable {
 }
 
 /* =========================================================
-   MINIMAP GHOST — "Байрлал засах" горимд minimap-ийг төлөөлөх хайрцаг
+      MINIMAP GHOST - box that represents the minimap in "Edit layout" mode
    ---------------------------------------------------------
-   Minimap бол тоглоомын (scaleform) элемент тул NUI дотор шууд чирэх
-   боломжгүй. Оронд нь яг түүний хэмжээтэй энэ хайрцгийг чирэхэд
-   client.lua бодит radar-ыг тэнд зөөнө.
+      The minimap is a game (scaleform) element, so it cannot be dragged
+      directly inside the NUI. Instead, when this box of exactly its size is dragged
+      client.lua moves the real radar there.
 
-   Анхдагч байрлал нь --mm-* хувьсагчаас ирдэг тул radar хаана байгаа
-   бол хайрцаг ч яг тэнд гарч ирнэ.
+      The default position comes from the --mm-* variables, so wherever the radar is
+      the box appears right there.
    ========================================================= */
 .mm-ghost {
     position: fixed;
@@ -506,15 +506,15 @@ body.editing [data-movable].editable {
 body.editing .mm-ghost { display: flex; }
 
 /* =========================================================
-   VEHICLE HUD — Toxic HUD-аас портлосон нэг карт
+      VEHICLE HUD - a single card ported from Toxic HUD
    ---------------------------------------------------------
-   Өмнөх 7 загварыг (petrol / diesel / ev / bike / moto / heli / air)
-   орлуулав. Тэдгээрт ENG зураас absolute байрлалтай байсан тул
-   FUEL зураас дээр давхарлаж байсан — энд бүх мөр урсгал (flow)
-   дотор байрлана, давхардах боломжгүй.
+      Replaces the previous 7 styles (petrol / diesel / ev / bike / moto / heli / air).
+      In them the ENG bar was absolutely positioned, so it
+      overlapped the FUEL bar - here every row sits
+      in the flow, so overlapping is impossible.
 
-   Өнгө нь Toxic HUD-ийн skin хувьсагчдаас (--pill-bg / --accent /
-   --text-dim / --warn) ирнэ.
+      Colors come from Toxic HUD's skin variables (--pill-bg / --accent /
+      --text-dim / --warn).
    ========================================================= */
 .speedo-wrap[data-style="toxic"] .sp-toxic { display: flex; }
 
@@ -585,6 +585,6 @@ body.editing .mm-ghost { display: flex; }
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-/* Түлш / хөдөлгүүр үнэхээр бага болсон үед л улаан болно */
+/* Turns red only when fuel / engine is really low */
 .sp-toxic .card-stats .stat.low strong { color: var(--warn); }
 .sp-toxic .card-stats .stat.low svg { stroke: var(--warn); }

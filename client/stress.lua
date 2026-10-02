@@ -1,16 +1,16 @@
 local Config = require 'config'
 
 -- ============================================================
---  Toxic HUD — STRESS-ийн эх үүсвэрүүд (client)
+--  Toxic HUD - STRESS sources (client)
 --
---  НЭМЭГДЭХ:  машинаар мөргөх / унах (ragdoll) / гэмтэх
---  ТАЙЛАГДАХ: хурдтай жолоодох (энд), GYM (hooks_server.lua),
---             хоол-архи (qbx_consumables), тамхи (smoking.lua)
+--  GAIN:   vehicle crash / falling (ragdoll) / getting hurt
+--  RELIEF: fast driving (here), GYM (hooks_server.lua),
+--          food / alcohol (qbx_consumables), smoking (smoking.lua)
 --
---  !!! ЗҮГЭЭР ЖОЛООДОХ нь stress ӨГӨХГҮЙ !!!
---  qb-hud болон ихэнх stress script хурд хэтрүүлэхэд stress
---  НЭМДЭГ. Энд эсрэгээрээ — хурдтай явах нь stress ТАЙЛНА.
---  Машинтай холбоотой цорын ганц нэмэгдүүлэгч нь МӨРГӨЛТ.
+--  !!! DRIVING FAST GIVES NO STRESS !!!
+--  qb-hud and most stress scripts ADD stress for speeding. Here it is the
+--  opposite - driving fast RELIEVES stress. The only vehicle-related
+--  stress gain is a CRASH.
 -- ============================================================
 
 if not (Config.Stress and Config.Stress.enabled) then return end
@@ -31,9 +31,9 @@ local function relieveStress(amount)
 end
 
 -- ============================================================
---  НЭМЭГДЭХ 1 — Машинаар мөргөх
---  Биеийн эвдрэл (0-1000) хэр огцом буурснаар хэмжинэ. Зөвхөн
---  ЖОЛООЧ байх үед — зорчигчид биш.
+--  GAIN 1 - Vehicle crash
+--  Measured by how sharply the body health (0-1000) drops. Only while
+--  DRIVING - passengers do not count.
 -- ============================================================
 if G.crash and G.crash.enabled then
     CreateThread(function()
@@ -69,10 +69,10 @@ if G.crash and G.crash.enabled then
 end
 
 -- ============================================================
---  НЭМЭГДЭХ 2 — Унах / тэнцвэрээ алдах (ragdoll)
---  ls_core/antipunchspam нударга спам хийхэд тоглогчийг унагадаг.
---  Тэр нь 'ls_core:client:stumbled' эвент илгээдэг (доороос үз).
---  Түүнээс гадна ямар ч шалтгаанаар ragdoll болоход ажиллана.
+--  GAIN 2 - Falling / losing balance (ragdoll)
+--  ls_core/antipunchspam knocks the player down when they spam punches.
+--  It sends the 'ls_core:client:stumbled' event (see below).
+--  Besides that, it triggers on any ragdoll.
 -- ============================================================
 if G.ragdoll and G.ragdoll.enabled then
     local nextRagdollAt = 0
@@ -84,10 +84,10 @@ if G.ragdoll and G.ragdoll.enabled then
         addStress(G.ragdoll.amount or 1.5)
     end
 
-    -- antipunchspam-аас шууд дохио (хамгийн нарийвчлалтай зам)
+    -- Direct signal from antipunchspam (the most precise path)
     RegisterNetEvent('ls_core:client:stumbled', onRagdoll)
 
-    -- Ерөнхий ragdoll илрүүлэлт (өндрөөс унах, мотоциклоос нисэх г.м)
+    -- Generic ragdoll detection (falling from height, thrown off a bike etc.)
     CreateThread(function()
         local wasRagdoll = false
         while true do
@@ -101,10 +101,10 @@ if G.ragdoll and G.ragdoll.enabled then
 end
 
 -- ============================================================
---  НЭМЭГДЭХ 3 — Гэмтэх (амь буурах)
---  p_ambulancejob тусгай hook гаргадаггүй тул амины бууралтыг
---  шууд хянана. Ингэснээр буудуулах / зодуулах / мөргөх / унах —
---  аль ч тохиолдолд ажиллана.
+--  GAIN 3 - Getting hurt (health drops)
+--  p_ambulancejob has no dedicated hook for this, so we watch health
+--  directly. That way it works for being shot / punched / crashing /
+--  falling - in every case.
 -- ============================================================
 if G.injury and G.injury.enabled then
     CreateThread(function()
@@ -132,14 +132,14 @@ if G.injury and G.injury.enabled then
 end
 
 -- ============================================================
---  ТАЙЛАГДАХ — Хурдтай жолоодох
---  "Салхинд гарах". Тогтмол хурдтай явж байж л тайлагдана;
---  зогсох / удаан явах нь нөлөөлөхгүй.
+--  RELIEF - Fast driving
+--  "Wind in your hair". Only relieves while holding a steady high speed;
+--  stopping / driving slowly has no effect.
 -- ============================================================
 if R.fastDriving and R.fastDriving.enabled then
     CreateThread(function()
         local interval = math.max(5, R.fastDriving.interval or 20)
-        local minSpeed = (R.fastDriving.minSpeed or 80) / 3.6   -- км/ц -> м/с
+        local minSpeed = (R.fastDriving.minSpeed or 80) / 3.6   -- km/h -> m/s
 
         while true do
             Wait(interval * 1000)
@@ -155,13 +155,13 @@ end
 
 -- ============================================================
 --  Statebag -> HUD
---  Энэ серверийн бусад script (qbx_consumables — хоол/архи,
---  p_ambulancejob — сэргээх үед тэглэх) stress-ийг ШУУД
---  Player(src).state.stress дээр бичдэг. Тэдгээрийг HUD дагаж
---  шинэчлэхийн тулд statebag-ийг сонсоно.
+--  Other scripts on this server (qbx_consumables - food / alcohol,
+--  p_ambulancejob - reset on revive) write stress DIRECTLY to
+--  Player(src).state.stress. We listen to the statebag so the HUD
+--  follows their changes.
 -- ============================================================
--- Server ID нь script ачаалах үед хараахан тодорхойгүй байж болох тул
--- bag-ийг шүүхгүйгээр бүртгэж, handler дотор өөрийн bag-тай тулгана.
+-- The server ID may not be known yet when this script loads, so we register
+-- without a bag filter and compare against our own bag inside the handler.
 AddStateBagChangeHandler('stress', nil, function(bagName, _, value)
     if value == nil then return end
     if bagName ~= ('player:%s'):format(GetPlayerServerId(PlayerId())) then return end
@@ -169,14 +169,14 @@ AddStateBagChangeHandler('stress', nil, function(bagName, _, value)
 end)
 
 -- ============================================================
---  НЭМЭГДЭХ 4 — Цус алдаж хэвтэх хугацаанд тасралтгүй
+--  GAIN 4 - Continuous gain while lying down bleeding
 --
---  p_ambulancejob-ийн баримтжуулсан statebag:
+--  p_ambulancejob's documented statebag:
 --    LocalPlayer.state.deathType = 'death'|'bleeding'|'recovering'|'none'
 --
---  Унах агшны нэг удаагийн stress нь server талд (onDeathStateChange
---  hook-оор) нэмэгддэг. Энд зөвхөн ХЭВТЭЖ БАЙХ хугацааны тасралтгүй
---  өсөлт — эмч удаан ирэх тусам stress нэмэгдэнэ.
+--  The one-off stress at the moment of going down is added server-side
+--  (via the onDeathStateChange hook). Here is only the continuous growth
+--  WHILE LYING DOWN - the longer the medic takes, the more stress.
 -- ============================================================
 local WB = G.downed and G.downed.enabled and G.downed.whileBleeding
 

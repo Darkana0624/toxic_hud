@@ -1,12 +1,12 @@
 local Config = require 'config'
 local Framework = require 'bridge'
 
--- Framework давхарга (bridge.lua) — qbx_core / qb-core / es_extended /
--- standalone-ийг нэгдсэн интерфейсээр өгнө. require-ээр ачаалснаар ижил
--- хүснэгтийн заагчийг баталгаатай авна (global хуваалцах хамаарлыг арилгана).
+-- Framework layer (bridge.lua) - provides qbx_core / qb-core / es_extended /
+-- standalone through one unified interface. Loading it with require
+-- guarantees the same table reference (removes the global-sharing dependency).
 
 -- ============================================================
---  Туслах функцууд
+--  Helper functions
 -- ============================================================
 
 local function sendUI(action, data)
@@ -14,31 +14,31 @@ local function sendUI(action, data)
 end
 
 -- ============================================================
---  HUD харагдах төлвийн төвлөрсөн менежмент
---  Доорх нөхцлүүдийг нэгтгэж HUD-г бүхэлд нь нуух/харуулна:
---    * Тоглогч нэвтрээгүй
---    * Pause menu (ESC) идэвхтэй  -> давхар HUD харагдахаас сэргийлнэ
---    * Өөр resource дэлгэцийг бүхэлд нь эзэлсэн (NUI focus авсан:
---      inventory / phone / tablet / menu г.м)
---    * Гадны script export-оор нуухыг хүссэн (hideHud)
---  Тохиргооны цэс (/toxichud) нээлттэй үед нь үргэлж харуулна.
+--  Central management of HUD visibility
+--  The HUD is hidden / shown as a whole by combining these conditions:
+--    * Player is not logged in
+--    * Pause menu (ESC) is active  -> prevents a duplicate HUD showing
+--    * Another resource covers the whole screen (took NUI focus:
+--      inventory / phone / tablet / menu etc.)
+--    * Another script asked to hide it via export (hideHud)
+--  It is ALWAYS shown while the settings menu (/toxichud) is open.
 -- ============================================================
 
-local hudVisible    = nil    -- NUI рүү сүүлд илгээсэн төлөв (nil = мэдэгдээгүй)
-local settingsOpen  = false  -- /toxichud тохиргооны цэс нээлттэй эсэх
-local externalHidden = false -- гадны script export-оор нуусан эсэх
-local cinematic     = false  -- тоглогч өөрөө түр унтраасан (cinematic mode)
+local hudVisible    = nil    -- last state sent to the NUI (nil = unknown)
+local settingsOpen  = false  -- whether the /toxichud settings menu is open
+local externalHidden = false -- whether hidden by another script via export
+local cinematic     = false  -- temporarily turned off by the player (cinematic mode)
 
 local function computeVisible()
     if not Framework.loggedIn then return false end
     if externalHidden then return false end
-    -- Тохиргоо нээлттэй бол (өөрийн NUI focus) заавал харуулна.
-    -- Cinematic-аас ДЭЭГҮҮР шалгана — ингэснээр HUD унтраалттай байхад
-    -- ч F7 дарж цэс рүү орох боломжтой хэвээр үлдэнэ.
+    -- Always show when settings are open (our own NUI focus).
+    -- Checked BEFORE cinematic - so even when the HUD is turned off the
+    -- menu can still be reached via the command.
     if settingsOpen then return true end
     if cinematic then return false end
     if IsPauseMenuActive() then return false end
-    -- Өөр resource дэлгэц бүхэлд нь эзэлсэн үед нуух
+    -- Hide while another resource covers the whole screen
     if IsNuiFocused() then return false end
     return true
 end
@@ -51,7 +51,7 @@ local function refreshHudVisibility()
     end
 end
 
--- Pause menu / NUI focus нь event биш тул хөнгөн давталтаар хянана.
+-- Pause menu / NUI focus are not events, so we watch them with a light loop.
 CreateThread(function()
     while true do
         Wait(200)
@@ -60,8 +60,8 @@ CreateThread(function()
 end)
 
 -- ============================================================
---  Бусад script-д зориулсан export-ууд
---  Жишээ: exports['toxic_hud']:hideHud() / exports['toxic_hud']:showHud()
+--  Exports for other scripts
+--  Example: exports['toxic_hud']:hideHud() / exports['toxic_hud']:showHud()
 -- ============================================================
 
 exports('hideHud', function()
@@ -79,7 +79,7 @@ exports('toggleHud', function()
     refreshHudVisibility()
 end)
 
--- bool дамжуулж шууд тохируулах (true = нуух)
+-- Set directly by passing a bool (true = hide)
 exports('setHudHidden', function(hidden)
     externalHidden = hidden and true or false
     refreshHudVisibility()
@@ -90,18 +90,18 @@ exports('isHudVisible', function()
 end)
 
 -- ============================================================
---  CINEMATIC MODE — тоглогч HUD-ээ түр унтраах
+--  CINEMATIC MODE - the player temporarily turns the HUD off
 --
---  Скриншот / видео бичих үед HUD бүхэлдээ алга болно. Тохиргооноос
---  хамаарч minimap-ыг ч хамт унтрааж, кино маягийн хар зураас нэмнэ.
+--  While taking screenshots / recording video the whole HUD disappears.
+--  Depending on config the minimap is also turned off and cinematic bars added.
 --
---  Товч: Config.Cinematic.Key (анхдагч F9) — тоглогч FiveM-ийн
---  Settings > Key Bindings > FiveM хэсгээс дураараа сольж болно.
---  Чат: /cinematic
+--  Key: Config.Cinematic.Key (default F9) - players can rebind it in
+--  FiveM's Settings > Key Bindings > FiveM.
+--  Chat: /cinematic
 --
---  Энэ нь exports-ийн hideHud()-ээс ТУСДАА тугтай. Тиймээс tablet /
---  inventory зэрэг гадны script HUD-ыг нууж байхад тоглогчийн сонголт
---  дарагдахгүй, буцаад хэвийндээ орно.
+--  This has a SEPARATE flag from the hideHud() export. So while another
+--  script (tablet / inventory) hides the HUD the player's choice is not
+--  overridden and it returns to normal afterwards.
 -- ============================================================
 
 local function cinematicBarsThread()
@@ -122,8 +122,8 @@ local function setCinematic(state)
 
     refreshHudVisibility()
 
-    -- Radar-ыг DisplayRadar давталт өөрөө дагаж шинэчилнэ, гэхдээ 1 секунд
-    -- хүлээлгэхгүйн тулд энд шууд нэг удаа тавина.
+    -- The DisplayRadar loop updates the radar itself, but we set it once here
+    -- directly so we do not have to wait 1 second.
     if Config.Cinematic and Config.Cinematic.HideRadar then
         DisplayRadar(not cinematic)
     end
@@ -135,17 +135,17 @@ RegisterCommand('cinematic', function()
     setCinematic(not cinematic)
 end, false)
 
-RegisterKeyMapping('cinematic', 'Cinematic mode (HUD түр унтраах)', 'keyboard',
+RegisterKeyMapping('cinematic', 'Cinematic mode (temporarily hide HUD)', 'keyboard',
     (Config.Cinematic and Config.Cinematic.Key) or 'F9')
 
-TriggerEvent('chat:addSuggestion', '/cinematic', 'HUD-ыг түр унтраах / асаах (cinematic mode)')
+TriggerEvent('chat:addSuggestion', '/cinematic', 'Temporarily hide / show the HUD (cinematic mode)')
 
--- Гадны script-д зориулав
+-- For other scripts
 exports('setCinematic', function(state) setCinematic(state) end)
 exports('toggleCinematic', function() setCinematic(not cinematic) end)
 exports('isCinematic', function() return cinematic end)
 
--- Түлшийг авах (ox_fuel / LegacyFuel аль аль нь statebag/decor ашигладаг)
+-- Get fuel (ox_fuel / LegacyFuel both use statebag/decor)
 local function getFuel(veh)
     -- ox_fuel
     if veh and veh ~= 0 then
@@ -157,14 +157,14 @@ local function getFuel(veh)
 end
 
 -- ============================================================
---  Нэвтрэх төлөв — framework-аас үл хамааран HUD харуулах / нуух
---  (bridge.lua login/logout үед "toxic_hud:auth" event дамжуулна)
+--  Login state - show / hide the HUD regardless of framework
+--  (bridge.lua fires the "toxic_hud:auth" event on login/logout)
 -- ============================================================
 
 AddEventHandler('toxic_hud:auth', function(_)
-    -- Нэвтрэх/гарах төлөв өөрчлөгдөхөд төвлөрсөн менежментээр шинэчилнэ
-    -- (loggedIn-ийг bridge.lua аль хэдийн тохируулсан байна).
-    hudVisible = nil   -- төлвийг дахин баталгаажуулна
+    -- When the login / logout state changes, update through the central manager
+    -- (loggedIn has already been set by bridge.lua).
+    hudVisible = nil   -- force the state to be re-evaluated
     refreshHudVisibility()
 end)
 
@@ -189,15 +189,15 @@ CreateThread(function()
 
             local armor = GetPedArmour(ped)
 
-            -- Stamina: GetPlayerSprintStaminaRemaining нь 0 (дүүрэн) -> 100 (барагдсан)
-            -- буцаадаг тул үлдсэн тэнхээг 100-аас хасч тооцно.
+            -- Stamina: GetPlayerSprintStaminaRemaining returns 0 (full) -> 100 (depleted),
+            -- so remaining stamina is computed as 100 minus that.
             local stamina = nil
             if Config.ShowStamina then
                 stamina = math.floor(100 - GetPlayerSprintStaminaRemaining(PlayerId()) + 0.5)
                 if stamina < 0 then stamina = 0 elseif stamina > 100 then stamina = 100 end
             end
 
-            -- Voice: ярьж байгаа эсэх + voice range (pma-voice statebag)
+            -- Voice: whether talking + voice range (pma-voice statebag)
             local talking, voiceRange = nil, nil
             if Config.ShowVoice then
                 talking = NetworkIsPlayerTalking(PlayerId())
@@ -205,8 +205,8 @@ CreateThread(function()
                 voiceRange = (prox and prox.index) or 2
             end
 
-            -- Уушигны багтаамж: усан доор үлдсэн амьсгалах хугацааг хувиар.
-            -- Дүүрэн + усан дор биш үед (hideWhenFull) nil илгээж нууна.
+            -- Lung capacity: remaining underwater breathing time as a percentage.
+            -- When full and not underwater (hideWhenFull) send nil to hide it.
             local lung = nil
             if Config.ShowLungCapacity then
                 local cfgL = Config.LungCapacity or {}
@@ -224,9 +224,9 @@ CreateThread(function()
             local thirst = Config.ShowThirst and Framework.thirst and math.floor(Framework.thirst) or nil
             local stress = Config.ShowStress and Framework.stress and math.floor(Framework.stress) or nil
 
-            -- Машины хөдөлгүүрийн элэгдэл (эрүүл мэнд). Зөвхөн машинд сууж
-            -- байх үед status дээр circle хэлбэрээр харагдана; явган бол nil
-            -- илгээж circle-г нууна. GetVehicleEngineHealth: 0..1000 -> 0..100%.
+            -- Vehicle engine wear (health). Only shown as a circle on the status HUD
+            -- while sitting in a vehicle; on foot we send nil to hide the circle.
+            -- GetVehicleEngineHealth: 0..1000 -> 0..100%.
             local engineHealth = nil
             local veh = cache.vehicle or GetVehiclePedIsIn(ped, false)
             if veh and veh ~= 0 then
@@ -235,7 +235,7 @@ CreateThread(function()
                 engineHealth = math.floor(eh / 10 + 0.5)
             end
 
-            -- Утга өөрчлөгдсөн үед л NUI рүү илгээнэ (idle үед зардал хэмнэнэ)
+            -- Only send to the NUI when a value changed (saves cost when idle)
             if healthPct ~= last.health or armor ~= last.armor or hunger ~= last.hunger
                or thirst ~= last.thirst or stress ~= last.stress or stamina ~= last.stamina
                or talking ~= last.voice or voiceRange ~= last.voiceRange
@@ -265,19 +265,19 @@ end)
 --  Speedometer loop
 -- ============================================================
 
--- Цахилгаан машины model hash-уудын хайлтын хүснэгт
+-- Lookup table of electric vehicle model hashes
 local electricHashes = {}
 for _, name in ipairs(Config.ElectricVehicles or {}) do
     electricHashes[GetHashKey(name)] = true
 end
 
--- Дизель машины model hash-ууд
+-- Diesel vehicle model hashes
 local dieselHashes = {}
 for _, name in ipairs(Config.DieselVehicles or {}) do
     dieselHashes[GetHashKey(name)] = true
 end
 
--- Тухайн машинд тохирох автомат speedo загвар (эсвэл nil)
+-- Automatic speedo style matching the vehicle (or nil)
 local function autoStyleFor(veh)
     if not Config.AutoSpeedoStyle then return nil end
     local class = GetVehicleClass(veh)
@@ -286,25 +286,25 @@ local function autoStyleFor(veh)
         return 'heli'
     elseif class == 16 then                   -- 16 = Planes
         return 'air'
-    elseif class == 8 then                    -- 8 = Motorcycles (мотоцикл)
+    elseif class == 8 then                    -- 8 = Motorcycles
         return 'moto'
-    elseif class == 13 then                   -- 13 = Cycles (унадаг дугуй)
+    elseif class == 13 then                   -- 13 = Cycles (bicycles)
         return 'bike'
     elseif electricHashes[model] then
         return 'ev'
     elseif dieselHashes[model] then
         return 'diesel'
     end
-    return 'petrol'                           -- бусад бүх машин: бензин
+    return 'petrol'                           -- every other vehicle: petrol
 end
 
 CreateThread(function()
-    -- nil = "төлөв хараахан илгээгээгүй". Ингэснээр сервер рүү ороод
-    -- машинд суугаагүй байхад эхний давталтад л hide илгээгдэнэ.
+    -- nil = "state not sent yet". This way, right after joining the server while
+    -- not in a vehicle, hide is only sent on the first iteration.
     local shown = nil
     while true do
-        -- Машинд байгаа үед л 50ms (зүү жигд хөдлөхөд), явган үед
-        -- 250ms-ээр шалгана. Ингэснээр idle үед CPU мэдэгдэхүйц буурна.
+        -- 50ms only while in a vehicle (so the needle moves smoothly), 250ms
+        -- on foot. This noticeably lowers CPU when idle.
         local sleep = 250
         if Framework.loggedIn then
             local veh = cache.vehicle or GetVehiclePedIsIn(cache.ped or PlayerPedId(), false)
@@ -323,14 +323,14 @@ CreateThread(function()
                 local seatbelt = LocalPlayer.state.seatbelt or false
                 local style   = autoStyleFor(veh)
 
-                -- Хурдны зураас: машины бодит дээд хурдтай харьцуулсан хувь
+                -- Speed bar: percentage relative to the vehicle's real top speed
                 local spd      = GetEntitySpeed(veh)
                 local maxSpeed = GetVehicleEstimatedMaxSpeed(veh)
                 local speedPct = (maxSpeed and maxSpeed > 0)
                     and math.min(100, math.floor(spd / maxSpeed * 100 + 0.5)) or 0
 
-                -- Хөдөлгүүрийн эрүүл мэнд (0-100). GetVehicleEngineHealth нь
-                -- 0-1000 буцаадаг; сөрөг утга (шатсан хөдөлгүүр) -> 0.
+                -- Engine health (0-100). GetVehicleEngineHealth returns 0-1000;
+                -- negative values (burnt-out engine) -> 0.
                 local eh = GetVehicleEngineHealth(veh) or 1000.0
                 if eh < 0.0 then eh = 0.0 end
                 local engHealth = math.floor(eh / 10 + 0.5)
@@ -338,7 +338,7 @@ CreateThread(function()
 
                 local payload = {
                     visible  = true,
-                    mps      = spd,                  -- түүхий хурд (m/s), нэгжийг NUI талд хөрвүүлнэ
+                    mps      = spd,                  -- raw speed (m/s), the NUI side converts units
                     speedPct = speedPct,
                     engineHealth = engHealth,
                     rpm      = rpm,
@@ -351,7 +351,7 @@ CreateThread(function()
                     temp     = 14 + math.floor(8 * math.sin((GetClockHours() - 6) / 24 * math.pi * 2) + 0.5),
                 }
 
-                -- Нисэхийн багажид зориулсан нэмэлт дата
+                -- Extra data for aviation instruments
                 if style == 'air' or style == 'heli' then
                     local coords = GetEntityCoords(veh)
                     local vel    = GetEntityVelocity(veh)
@@ -362,17 +362,17 @@ CreateThread(function()
                     payload.pitch   = GetEntityPitch(veh)
                 end
 
-                -- Гэрэл: ойрын (low beam) / холын (high beam) — унадаг дугуйнаас
-                -- бусад бүх загварт илгээнэ (доорх speedo-нууд дээр харуулна).
+                -- Lights: low beam / high beam - sent for every style except bicycles
+                -- (shown on the speedos below).
                 if style ~= 'bike' then
                     local _, lightsOn, highbeams = GetVehicleLightsState(veh)
                     payload.highbeam = highbeams == 1 or highbeams == true
                     payload.lights   = lightsOn == 1 or lightsOn == true
                 end
 
-                -- Мотоциклын кластерт зориулсан нэмэлт заагч гэрэл
+                -- Extra indicator lights for the motorcycle cluster
                 if style ~= 'bike' then
-                    -- GetVehicleIndicatorLights: bit 1 = баруун, bit 2 = зүүн
+                    -- GetVehicleIndicatorLights: bit 1 = right, bit 2 = left
                     local ind = GetVehicleIndicatorLights(veh)
                     payload.indLeft  = (ind & 2) ~= 0
                     payload.indRight = (ind & 1) ~= 0
@@ -380,7 +380,7 @@ CreateThread(function()
 
                 sendUI('speedo', payload)
             else
-                -- shown == nil (анх) эсвэл true (машинаас буусан) бол hide илгээнэ
+                -- send hide if shown == nil (initial) or true (just left the vehicle)
                 if shown ~= false then
                     sendUI('speedo', { visible = false })
                     shown = false
@@ -394,7 +394,7 @@ CreateThread(function()
 end)
 
 -- ============================================================
---  Цаг / мөнгө / job / гудамж loop
+--  Time / money / job / street loop
 -- ============================================================
 
 CreateThread(function()
@@ -419,14 +419,14 @@ CreateThread(function()
 end)
 
 -- ============================================================
---  Compass / Street loop (дээд гол)
---  Камерын харж буй өнцгөөр зүг/градус, одоогийн болон
---  зүүн/баруун талын огтлолцох гудамжны нэрийг тооцоолно.
+--  Compass / Street loop (top center)
+--  From the direction the camera is facing, computes heading / degrees and
+--  the names of the current and left / right intersecting streets.
 -- ============================================================
 
 local COMPASS_DIRS = { 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW' }
 
--- Тухайн цэг дэх гудамжны нэрийг авах
+-- Get the street name at a point
 local function streetAt(x, y, z)
     local hash = GetStreetNameAtCoord(x, y, z)
     local name = GetStreetNameFromHashKey(hash)
@@ -442,30 +442,30 @@ CreateThread(function()
             local ped = cache.ped or PlayerPedId()
             local coords = GetEntityCoords(ped)
 
-            -- Камерын харж буй чиглэл (heading): 0 = Хойд, эерэг = цагийн зүүний эсрэг
+            -- Direction the camera is facing (heading): 0 = North, positive = counter-clockwise
             local camHeading = GetGameplayCamRot(2).z % 360.0
             if camHeading < 0 then camHeading = camHeading + 360.0 end
 
-            -- Compass bearing (0 = Хойд, цагийн зүүний дагуу нэмэгдэнэ)
+            -- Compass bearing (0 = North, increases clockwise)
             local bearing = (360.0 - camHeading) % 360.0
             local dirIndex = math.floor((bearing + 22.5) / 45.0) % 8
             local dir = COMPASS_DIRS[dirIndex + 1]
 
-            -- Зүүн / баруун талын цэгүүдийг тооцоолох (харааны чиглэлд харьцангуй)
+            -- Compute left / right points (relative to the view direction)
             local rad = math.rad(camHeading)
             local dist = 25.0
-            local rx, ry = math.cos(rad) * dist, math.sin(rad) * dist  -- баруун вектор
+            local rx, ry = math.cos(rad) * dist, math.sin(rad) * dist  -- right vector
 
             local streetName  = streetAt(coords.x, coords.y, coords.z)
             local streetRight = streetAt(coords.x + rx, coords.y + ry, coords.z)
             local streetLeft  = streetAt(coords.x - rx, coords.y - ry, coords.z)
 
-            -- Зүүн/баруун нь одоогийнхтой ижил бол хоосон болгож давхцлыг арилгана
+            -- If left / right equal the current one, blank them to remove duplication
             if streetRight == streetName then streetRight = '' end
             if streetLeft == streetName then streetLeft = '' end
 
             local deg = math.floor(bearing)
-            -- Өмнөхтэй ижил бол NUI рүү дахин илгээхгүй (зардал хэмнэнэ)
+            -- Do not resend to the NUI if unchanged (saves cost)
             if deg ~= last.deg or dir ~= last.dir or streetName ~= last.street
                or streetLeft ~= last.left or streetRight ~= last.right then
                 last.deg, last.dir, last.street = deg, dir, streetName
@@ -486,56 +486,56 @@ CreateThread(function()
 end)
 
 -- ============================================================
---  Minimap (radar) — явган үед ч үргэлж харуулах
---  DisplayRadar(true)-г frame бүрт дуудах шаардлагагүй — төлөв нь
---  тогтвортой хадгалагддаг тул 1 секунд тутамд дахин баталгаажуулахад
---  хангалттай (frame бүрийн CPU зардлыг бүрэн арилгана).
+--  Minimap (radar) - always show, even on foot
+--  There is no need to call DisplayRadar(true) every frame - the state is
+--  persistent, so re-confirming it every second is enough
+--  (completely removes the per-frame CPU cost).
 -- ============================================================
 
 CreateThread(function()
     while true do
-        -- Cinematic mode үед (тохиргоо зөвшөөрвөл) radar-ыг ч унтраана
+        -- During cinematic mode (if config allows) also turn the radar off
         DisplayRadar(not (cinematic and Config.Cinematic and Config.Cinematic.HideRadar))
         Wait(1000)
     end
 end)
 
 -- ============================================================
---  Minimap (radar)-ийн байрлал — Config.MinimapPosition
---     'bottom-left' — GTA-гийн анхдагч. Radar-ийг огт хөндөхгүй.
---     'top-right'   — баруун дээд булан.
+--  Minimap (radar) position - Config.MinimapPosition
+--     'bottom-left' - GTA default. The radar is not touched at all.
+--     'top-right'   - top-right corner.
 --
---  ЗАРЧИМ: тоглоомын гурван бүрдэл (minimap = зураг+компас,
---  minimap_mask = харагдах муж, minimap_blur = захын бүдгэрэлт) нь
---  анхнаасаа ХАРИЛЦАН ӨӨР offset / хэмжээтэй байдаг. Тэдгээрийг тус
---  тусад нь "баруун дээш" гэж таамаглан бичвэл маск зурагтайгаа
---  зөрж, компас тусдаа хөвдөг.
+--  PRINCIPLE: the game's three components (minimap = image + compass,
+--  minimap_mask = visible area, minimap_blur = edge fade) naturally have
+--  DIFFERENT offsets / sizes relative to each other. If you position them
+--  separately assuming "top right", the mask separates from its image
+--  and the compass floats on its own.
 --
---  Тиймээс энд бүрдэл бүрийг ТУСАД НЬ байрлуулахгүй. Оронд нь
---  анхны (vanilla) утгуудыг хэвээр нь үлдээж, ГУРВУУЛАНГ НЬ НЭГ ИЖИЛ
---  зайгаар шилжүүлнэ. Ингэснээр хоорондын харьцаа огт эвдрэхгүй —
---  маск үргэлж зурагтайгаа таарч, компас газрын зурган дээрээ үлдэнэ.
+--  So here we do NOT place each component SEPARATELY. Instead we keep the
+--  original (vanilla) values and shift ALL THREE BY THE SAME distance.
+--  That way the relationship between them is never broken -
+--  the mask always matches its image and the compass stays on the map.
 --
---  Шилжих зайг safezone / нягтрал / дүрсний харьцаанаас автоматаар
---  боддог тул гараар тааруулах зүйл үндсэндээ байхгүй. Шаардлагатай
---  бол Config.MinimapNudge-ээр бага зэрэг нударч болно.
+--  The shift distance is calculated automatically from safezone / resolution /
+--  aspect ratio, so there is essentially nothing to tune by hand. If needed,
+--  Config.MinimapNudge can adjust it slightly.
 --
---  ХЯЗГААРЛАЛТ (тоглоомын өөрийнх):
---    * "Bigmap" (Z товч) хэвээр зүүн доод буланд нээгдэнэ
---    * Үндсэн health / armour arc байрлал зөрнө — гэхдээ Toxic HUD
---      тэдгээрийг Config.HideNativeHealthArmour-оор нуудаг
+--  LIMITATIONS (the game's own):
+--    * "Bigmap" (Z key) still opens at the bottom left
+--    * The native health / armour arc position will be off - but Toxic HUD
+--      hides them via Config.HideNativeHealthArmour
 -- ============================================================
 
--- GTA-гийн анхны байрлалууд. alignX = 'L' (зүүнээс), alignY = 'B' (доороос);
--- энэ анкорыг ХЭВЭЭР үлдээж, зөвхөн x/y дээр нэмнэ. x эерэг = баруун тийш,
--- y эерэг = дээш.
+-- GTA's original positions. alignX = 'L' (from left), alignY = 'B' (from bottom);
+-- we KEEP this anchor and only add to x/y. positive x = right,
+-- positive y = up.
 local MM_VANILLA = {
     { comp = 'minimap',      x =  0.000, y = -0.047, w = 0.1638, h = 0.183 },
     { comp = 'minimap_mask', x =  0.000, y =  0.000, w = 0.128,  h = 0.200 },
     { comp = 'minimap_blur', x = -0.010, y =  0.025, w = 0.262,  h = 0.300 },
 }
 
--- Radar-ийн бодит хэмжээ, дэлгэцийн хувиар (тоглоомын албан ёсны томьёо).
+-- Real size of the radar, as a screen fraction (the game's official formula).
 local function minimapFrac()
     local resX, resY = GetActiveScreenResolution()
     local aspect = GetAspectRatio(false)
@@ -549,30 +549,30 @@ local function minimapFrac()
     return 1.0 / (4.0 * aspect), 1.0 / 5.674, inset
 end
 
--- Тоглогч өөрөө сонгосон байрлал (F7 -> "Байрлал засах" -> MINIMAP хайрцгийг
--- чирэх). Дэлгэцийн хувиар, ЗҮҮН ДЭЭД булангаар. nil = config-ийн анхдагч.
+-- Position the player chose themselves (/toxichud -> "Edit layout" -> drag the
+-- MINIMAP box). Screen fraction, from the TOP-LEFT corner. nil = config default.
 local playerMM = nil
 
--- Radar-ийг тоглоомын анхдагчаас хөдөлгөх шаардлагатай эсэх
+-- Whether the radar needs to be moved from the game's default
 local function minimapMoved()
     return playerMM ~= nil or Config.MinimapPosition == 'top-right'
 end
 
--- Зүүн доод буланд байгаа radar-ыг очих байрлал руу нь зөөхөд шаардагдах
--- шилжилт (дэлгэцийн хувиар). x эерэг = баруун тийш, y эерэг = дээш.
+-- The shift needed to move the bottom-left radar to its target position
+-- (screen fraction). positive x = right, positive y = up.
 local function minimapShift()
     local wFrac, hFrac, inset = minimapFrac()
     local nudge = Config.MinimapNudge or {}
     local dx, dy
 
     if playerMM then
-        -- Тоглогчийн сонголт давуу эрхтэй. NUI нь зүүн дээд булангаар
-        -- (y дээрээс) өгдөг тул доороос хэмжсэн утга руу хөрвүүлнэ.
+        -- The player's choice takes priority. The NUI gives it from the top-left
+        -- corner (y from the top), so convert to a value measured from the bottom.
         dx = playerMM.x - inset
         dy = (1.0 - playerMM.y - hFrac) - inset
     elseif Config.MinimapPosition == 'top-right' then
-        -- Хоёуланд нь 2*inset хасагдана: нэг inset нь одоогийн (зүүн/доод)
-        -- захаас, нөгөө нь очих (баруун/дээд) захаас.
+        -- 2*inset is subtracted from both: one inset from the current (left / bottom)
+        -- edge, the other from the target (right / top) edge.
         dx = 1.0 - 2.0 * inset - wFrac
         dy = 1.0 - 2.0 * inset - hFrac
     else
@@ -582,8 +582,8 @@ local function minimapShift()
     return dx + (nudge.x or 0.0), dy + (nudge.y or 0.0)
 end
 
--- Хамгийн сүүлд radar-ыг хөндсөн эсэх. Тоглогч байрлалаа reset хийхэд
--- vanilla утгыг НЭГ УДАА буцааж бичих шаардлагатай — үүнийг мэдэхэд хэрэглэнэ.
+-- Whether the radar was touched last time. When the player resets their position
+-- the vanilla values must be written back ONCE - this is used to know that.
 local mmApplied = false
 
 local function applyMinimapLayout()
@@ -602,18 +602,18 @@ local function applyMinimapLayout()
     mmApplied = true
     for i = 1, #MM_VANILLA do
         local v = MM_VANILLA[i]
-        -- SetMinimapComponentPosition-ийн Y тэнхлэг ДООШОО чиглэдэг
-        -- (vanilla minimap y = -0.047 нь доод захаас ДЭЭШ гэсэн үг).
-        -- dy бол "дээш шилжих" хэмжээ тул ХАСНА. Нэмбэл radar дэлгэцийн
-        -- доогуур гарч бүрмөсөн алга болно.
+        -- The Y axis of SetMinimapComponentPosition points DOWNWARD
+        -- (vanilla minimap y = -0.047 means UP from the bottom edge).
+        -- dy is the "shift up" amount, so SUBTRACT it. If added, the radar goes
+        -- below the screen and disappears completely.
         SetMinimapComponentPosition(v.comp, 'L', 'B',
             v.x + dx + 0.0, v.y - dy + 0.0, v.w + 0.0, v.h + 0.0)
     end
 end
 
--- Тоглогч байрлалаа өөрчилж болох тул давталтыг үргэлж ажиллуулна
--- (тоглоом respawn / нягтрал солих / bigmap-ийн дараа байрлалаа
---  анхныхаараа сэргээдэг). Хөдөлгөх зүйлгүй үед 1 харьцуулалт л хийнэ.
+-- Since the player can change the position, the loop always runs
+-- (the game restores its original position after respawn / resolution
+-- change / bigmap). When there is nothing to move it does just 1 comparison.
 if Config.MinimapPosition == 'top-right' or Config.AllowPlayerMinimapMove then
     CreateThread(function()
         while not NetworkIsSessionStarted() do Wait(500) end
@@ -625,36 +625,36 @@ if Config.MinimapPosition == 'top-right' or Config.AllowPlayerMinimapMove then
 end
 
 -- ============================================================
---  GTA-гийн ҮНДСЭН health / armour бар — minimap-ийн доор гарч
---  ирдэг ногоон (амь) ба цэнхэр (хуяг) зураас. Toxic HUD өөрөө
---  эдгээрийг харуулдаг тул давхардуулахгүйн тулд нууна.
+--  GTA's NATIVE health / armour bars - the green (health) and blue (armour)
+--  strips that appear under the minimap. Toxic HUD shows these itself, so
+--  they are hidden to avoid duplicates.
 --
---  "minimap" scaleform-ийн SETUP_HEALTH_ARMOUR арга:
---     0 = хоёулаа харагдана (тоглоомын анхдагч)
---     1 = зөвхөн амь
---     2 = зөвхөн хуяг
---     3 = аль аль нь нуугдана
---  Тоглоом frame бүрт өөрийн утгаараа дахин тохируулдаг тул
---  frame бүрт дарж бичих ёстой (нэг scaleform дуудлага — зардал бага).
---  minimap.gfx файл солих / stream хийх шаардлагагүй.
+--  SETUP_HEALTH_ARMOUR method of the "minimap" scaleform:
+--     0 = both visible (game default)
+--     1 = health only
+--     2 = armour only
+--     3 = both hidden
+--  The game resets this to its own value every frame, so it must be
+--  overwritten every frame (a single scaleform call - low cost).
+--  No need to replace / stream minimap.gfx.
 --
---  АНХААР: интернэтэд түгээмэл байдаг жишээнүүд scaleform-ийг
---  "сэргээхийн" тулд SetRadarBigmapEnabled(true) -> (false) гэж
---  тольдог. ҮҮНИЙГ ХИЙХГҮЙ — ачаалалтын үед тэр унтраах дуудлага
---  алдагдаж, minimap өргөтгөсөн (bigmap) хэлбэрээрээ гацдаг.
---  Доорх давталт frame бүрт ажилладаг тул сэргээх заль хэрэггүй.
+--  WARNING: examples commonly found online toggle SetRadarBigmapEnabled
+--  (true) -> (false) to "restore" the scaleform. DO NOT DO THIS - during
+--  loading that turn-off call can get lost, and the minimap gets stuck in
+--  its expanded (bigmap) form.
+--  The loop below runs every frame, so no restore trick is needed.
 -- ============================================================
 
 if Config.HideNativeHealthArmour then
     CreateThread(function()
-        -- Тоглогч ертөнцөд бүрэн орох хүртэл хүлээнэ. Ачаалах дэлгэц
-        -- дээр байхад radar хараахан байхгүй тул тэр үед хандвал
-        -- дуудлага алдагдаж, bigmap асаалттай гацах эрсдэлтэй.
+        -- Wait until the player has fully entered the world. On the loading screen
+        -- the radar does not exist yet, so touching it then risks the call being
+        -- lost and bigmap getting stuck on.
         while not NetworkIsSessionStarted() do Wait(500) end
         while not DoesEntityExist(PlayerPedId()) do Wait(250) end
 
-        -- Цэвэрлэгээ: bigmap (өргөтгөсөн minimap) асаалттай гацсан байвал
-        -- энгийн жижиг minimap руу буцаана.
+        -- Cleanup: if bigmap (expanded minimap) got stuck on, return to the
+        -- normal small minimap.
         SetRadarBigmapEnabled(false, false)
 
         local mm = RequestScaleformMovie('minimap')
@@ -664,7 +664,7 @@ if Config.HideNativeHealthArmour then
             tries = tries + 1
         end
         if not HasScaleformMovieLoaded(mm) then
-            print('^3[toxic_hud]^7 minimap scaleform ачаалагдсангүй — үндсэн health/armour бар хэвээр үлдэнэ')
+            print('^3[toxic_hud]^7 minimap scaleform failed to load - native health/armour bars will remain')
             return
         end
 
@@ -678,29 +678,29 @@ if Config.HideNativeHealthArmour then
 end
 
 -- ============================================================
---  Дэлгэцийн мэдээлэл — HUD-ийн responsive масштабад зориулав
---  NUI тал нь дэлгэцийн нягтралыг өөрөө мэддэг ч, GTA-гийн
---  "Safe Zone Size" тохиргоо ба aspect ratio-г зөвхөн эндээс л
---  авах боломжтой. Эдгээрээс minimap (radar)-ийн байрлал/хэмжээ
---  хамаардаг тул HUD түүнтэй яг зэрэгцэж чадна.
+--  Screen info - for the HUD's responsive scaling
+--  The NUI side knows the screen resolution itself, but GTA's
+--  "Safe Zone Size" setting and aspect ratio can only be obtained here.
+--  The minimap (radar) position / size depends on them, so the HUD can
+--  line up exactly with it.
 -- ============================================================
 
--- GTA-гийн radar (minimap)-ийн бодит тэгш өнцөгтийг пикселээр тооцоолно.
--- Албан ёсны томьёо:
---     өргөн  = resX / (4 * aspectRatio)
---     өндөр  = resY / 5.674
---     зүүн   = resX * 0.5 * (1 - safeZone)
---     доод   = resY * 0.5 * (1 - safeZone)
--- ЧУХАЛ: өргөнийг resY/4 гэж товчилж БОЛОХГҮЙ. Тэр товчлол нь зөвхөн
--- aspectRatio == resX/resY үед зөв бөгөөд дэлгэц сунгасан (stretched),
--- letterbox эсвэл олон дэлгэцийн тохиргоонд GetAspectRatio(false) нь
--- resX/resY-ээс зөрдөг тул хүрээ minimap-аас хажуу тийш гүйдэг.
+-- Computes the real rectangle of GTA's radar (minimap) in pixels.
+-- Official formula:
+--     width  = resX / (4 * aspectRatio)
+--     height = resY / 5.674
+--     left   = resX * 0.5 * (1 - safeZone)
+--     bottom = resY * 0.5 * (1 - safeZone)
+-- IMPORTANT: do NOT shorten the width to resY/4. That shortcut is only
+-- correct when aspectRatio == resX/resY; on stretched, letterboxed or
+-- multi-monitor setups GetAspectRatio(false) differs from resX/resY,
+-- so the frame would drift sideways off the minimap.
 local function minimapRect()
     local resX, resY = GetActiveScreenResolution()
     local aspect   = GetAspectRatio(false)
     local safeZone = GetSafeZoneSize()
 
-    -- Хамгаалалт: aspect 0 / nan ирвэл дэлгэцийн харьцаанд шилжинэ
+    -- Guard: if aspect is 0 / nan, fall back to the screen ratio
     if not aspect or aspect ~= aspect or aspect <= 0.0 then
         aspect = resX / resY
     end
@@ -715,20 +715,20 @@ local function minimapRect()
         b = resY * inset,
     }
 
-    -- Radar-ийг баруун дээд буланд зөөсөн бол хүрээний тэгш өнцөгтийг ч
-    -- тэр булан руу шилжүүлнэ. CSS нь mm.x (зүүнээс) ба mm.b (доороос)
-    -- гэсэн нэг л конвенц ашигладаг тул зөвхөн эдгээрийг дахин бодоход
-    -- хангалттай — .status-frame болон .status-wrap автоматаар дагана.
+    -- If the radar was moved to the top-right corner, move the frame rectangle
+    -- to that corner as well. CSS uses a single convention, mm.x (from the left)
+    -- and mm.b (from the bottom), so recomputing only these is enough -
+    -- .status-frame and .status-wrap follow automatically.
     if Config.MinimapPosition == 'top-right' then
-        -- Radar-т хэрэглэсэн ЯГ ижил шилжилтийг ашиглана — ингэснээр
-        -- нударга (MinimapNudge) хийсэн ч хүрээ зурагнаасаа салахгүй.
+        -- Use EXACTLY the same shift applied to the radar - that way the frame
+        -- does not separate from the image even with a nudge (MinimapNudge).
         local dx, dy = minimapShift()
         mm.x = mm.x + resX * dx
         mm.b = mm.b + resY * dy
     end
 
-    -- Тоглогчийн minimap стандарт бус бол (өргөтгөсөн газрын зураг,
-    -- дугуй/дөрвөлжин minimap mod г.м) config-оос гараар дарж бичнэ.
+    -- If the player's minimap is non-standard (expanded map, round / square
+    -- minimap mods etc.), override manually from the config.
     local ov = Config.MinimapOverride
     if ov and ov.enabled then
         if ov.w then mm.w = resX * ov.w end
@@ -747,42 +747,42 @@ local function sendScreenInfo()
         resY     = resY,
         aspect   = aspect,
         safeZone = safeZone,
-        -- radar-ийн тэгш өнцөгт (px) — NUI тал үүнийг шууд хэрэглэнэ
+        -- radar rectangle (px) - the NUI side uses this directly
         mmX = math.floor(mm.x + 0.5),
         mmB = math.floor(mm.b + 0.5),
         mmW = math.floor(mm.w + 0.5),
         mmH = math.floor(mm.h + 0.5),
-        -- Аль буланд байгаа нь — NUI status кластерыг эсрэг тал руу нь тавина
+        -- Which corner it is in - the NUI puts the status cluster on the opposite side
         mmPos = Config.MinimapPosition or 'bottom-left',
     })
 end
 
 -- ------------------------------------------------------------
---  /mmpos — radar-ийн байрлалыг тоглоом дундаас нударч тохируулах
+--  /mmpos - nudge the radar position from in game
 --
---  Шилжилт нь автоматаар бодогддог тул ихэвчлэн хэрэггүй. Гэхдээ
---  minimap-ийг өөрчилдөг өөр resource байвал (дөрвөлжин minimap,
---  өргөтгөсөн газрын зураг г.м) 2-3 мянганы нэгжээр зөрж болно.
+--  The shift is calculated automatically, so this is usually not needed. But
+--  if another resource changes the minimap (square minimap,
+--  expanded map etc.) it can be off by 2-3 thousandths.
 --
---     /mmpos                -> одоогийн нударгыг хэвлэнэ
---     /mmpos 0.01 -0.005    -> x, y-г тэр хэмжээгээр НЭМЖ нударна
---     /mmpos reset          -> нударгыг тэглэнэ
+--     /mmpos                -> prints the current nudge
+--     /mmpos 0.01 -0.005    -> ADDS that amount to x, y
+--     /mmpos reset          -> zeroes the nudge
 --
---  Таарсан утгаа config.lua-гийн Config.MinimapNudge руу бичнэ.
---  Гурван бүрдэл хамт шилждэг тул маск / компас хэзээ ч салахгүй.
+--  Write the value that fits into Config.MinimapNudge in config.lua.
+--  The three components move together, so the mask / compass never separate.
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
---  Тоглогч minimap-ийг өөрөө зөөх (F7 -> "Байрлал засах")
+--  The player moves the minimap themselves (/toxichud -> "Edit layout")
 --
---  NUI дотор minimap-ийн тэгш өнцөгтийг төлөөлсөн хайрцаг (#mmghost)
---  чирэгддэг. Тавьсан газрыг энд хүлээж авна: x, y нь дэлгэцийн хувь,
---  ЗҮҮН ДЭЭД булангаар. Хоосон объект ирвэл (Reset) тоглоомын анхдагч
---  байрлал руу буцаана.
+--  Inside the NUI a box (#mmghost) representing the minimap rectangle is
+--  draggable. The drop position is received here: x, y are screen fractions,
+--  from the TOP-LEFT corner. If an empty object arrives (Reset) it returns
+--  to the game's default position.
 --
---  Байрлал нь бусад HUD элементийн хамт 'toxichud:pos' KVP дотор
---  хадгалагдана — NUI дахин ачаалагдахдаа энэ callback руу буцааж
---  илгээдэг тул reconnect хийсний дараа ч хэвээр үлдэнэ.
+--  The position is stored with the other HUD elements in the 'toxichud:pos'
+--  KVP - when the NUI reloads it sends it back to this callback,
+--  so it persists after a reconnect too.
 -- ------------------------------------------------------------
 
 RegisterNUICallback('setMinimapPos', function(data, cb)
@@ -798,7 +798,7 @@ RegisterNUICallback('setMinimapPos', function(data, cb)
     end
 
     applyMinimapLayout()
-    sendScreenInfo()   -- HUD-ийн хүрээ / status кластер radar-аа дагана
+    sendScreenInfo()   -- the HUD frame / status cluster follows the radar
     cb('ok')
 end)
 
@@ -822,15 +822,15 @@ if Config.MinimapPosition == 'top-right' then
 
         applyMinimapLayout()
         sendScreenInfo()
-        print(('^2[toxic_hud]^7 MinimapNudge = { x = %.4f, y = %.4f }  <- config.lua-д хуулна уу')
+        print(('^2[toxic_hud]^7 MinimapNudge = { x = %.4f, y = %.4f }  <- copy into config.lua')
             :format(n.x or 0.0, n.y or 0.0))
     end, false)
 
-    TriggerEvent('chat:addSuggestion', '/mmpos', 'Minimap-ийн байрлалыг нударч тохируулах (dx dy)')
+    TriggerEvent('chat:addSuggestion', '/mmpos', 'Nudge the minimap position (dx dy)')
 end
 
--- Тоглогч график тохиргоогоо (нягтрал / safezone) дундуур өөрчилж болох тул
--- хөнгөн давталтаар хянаж, өөрчлөгдсөн үед л NUI рүү илгээнэ.
+-- The player can change graphics settings (resolution / safezone) mid-game, so
+-- a light loop watches them and sends to the NUI only when they change.
 CreateThread(function()
     local lastX, lastY, lastSafe, lastAspect = 0, 0, -1.0, -1.0
     while true do
@@ -848,7 +848,7 @@ CreateThread(function()
 end)
 
 -- ============================================================
---  Resource эхлэх / зогсох
+--  Resource start / stop
 -- ============================================================
 
 AddEventHandler('onResourceStart', function(res)
@@ -860,14 +860,14 @@ AddEventHandler('onResourceStart', function(res)
             resourceName = GetCurrentResourceName(),
         })
         sendScreenInfo()
-        -- Resource дунд restart хийгдсэн ч аль хэдийн нэвтэрсэн бол төлвийг сэргээнэ
+        -- Even if the resource was restarted mid-session, restore the state if already logged in
         hudVisible = nil
         refreshHudVisibility()
     end
 end)
 
 -- ============================================================
---  HUD тохиргоо — элемент зөөх цэс нээх
+--  HUD settings - open the element-moving menu
 -- ============================================================
 
 RegisterNUICallback('closeSettings', function(_, cb)
@@ -878,13 +878,13 @@ RegisterNUICallback('closeSettings', function(_, cb)
 end)
 
 -- ============================================================
---  HUD тохиргоо хадгалах (client KVP — reconnect-д тэсвэртэй)
---  Браузерын localStorage сервер дахин холбогдоход цэвэрлэгддэг тул
---  байрлал / загвар / нэгжийг SetResourceKvp-ээр найдвартай хадгална.
+--  Saving HUD settings (client KVP - survives reconnects)
+--  The browser's localStorage is cleared when reconnecting to a server,
+--  so position / style / unit are saved reliably with SetResourceKvp.
 -- ============================================================
 
--- Хуучин 'lshud:' / 'dkhud:' түлхүүрээс шинэ 'toxichud:' рүү нэг удаагийн
--- шилжүүлэг (нэр солигдсон тул хадгалсан байрлал / загвар алдагдахгүй).
+-- One-time migration from the old 'lshud:' / 'dkhud:' keys to the new 'toxichud:'
+-- (because of the rename, saved positions / styles are not lost).
 local function kvpGet(key)
     local v = GetResourceKvpString('toxichud:' .. key)
     if v == nil then
@@ -907,8 +907,8 @@ RegisterNUICallback('saveSetting', function(data, cb)
 end)
 
 RegisterNUICallback('loadSettings', function(_, cb)
-    -- NUI хуудас ачаалагдсан нь энэ дуудлагаар батлагдсан тул дэлгэцийн
-    -- мэдээллийг (эхний удаад алдагдсан байж болзошгүй) дахин илгээнэ.
+    -- This call confirms the NUI page has loaded, so resend the screen
+    -- info (it may have been lost the first time).
     sendScreenInfo()
     cb({
         pos   = kvpGet('pos'),
@@ -918,26 +918,26 @@ RegisterNUICallback('loadSettings', function(_, cb)
         scale = kvpGet('scale'),
         statusLayout = kvpGet('statusLayout'),
 
-        -- Серверийн анхдагчууд. 'config' мессеж нь resource эхлэхэд илгээгддэг
-        -- боловч NUI хуудасны JS хараахан ачаалагдаагүй бол АЛДАГДАНА
-        -- (SendNUIMessage дараалалд ордоггүй). Тиймээс NUI өөрөө татахдаа
-        -- эдгээрийг хамт авч, тохиргоо ямар ч тохиолдолд бүрэн ирнэ.
+        -- Server defaults. The 'config' message is sent when the resource starts,
+        -- but if the NUI page's JS has not loaded yet it is LOST
+        -- (SendNUIMessage does not queue). So the NUI pulls these itself,
+        -- together, so the config arrives completely in every case.
         cfgUseMPH = Config.UseMPH,
         cfgLang   = Config.Language,
         cfgScale  = Config.HudScale,
     })
 end)
 
--- Тохиргоо зөвхөн /toxichud командаар нээгдэнэ (товчны холбоосгүй).
+-- Settings open only with the /toxichud command (no key binding).
 RegisterCommand('toxichud', function()
     settingsOpen = true
-    refreshHudVisibility()   -- тохиргоо нээх үед HUD-г заавал харуулна
+    refreshHudVisibility()   -- always show the HUD when opening settings
     SetNuiFocus(true, true)
     sendUI('openSettings', {})
 end, false)
 
--- Чат санал болголт
-TriggerEvent('chat:addSuggestion', '/toxichud', 'Toxic HUD-ийн тохиргоог нээх')
+-- Chat suggestion
+TriggerEvent('chat:addSuggestion', '/toxichud', 'Open the Toxic HUD settings')
 
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() then

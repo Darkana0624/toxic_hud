@@ -6,9 +6,9 @@
     user-select: none;
 }
 
-/* Бүх хэмжээ rem-ээр өгөгдсөн тул html-ийн font-size-ыг script.js дэлгэцийн
-   нягтрал/харьцаанд тааруулан тооцоолж өгснөөр HUD бүхэлдээ пропорциональ
-   масштаблагдана. 16px нь JS ажиллаагүй үеийн fallback. */
+/* All sizes are given in rem, so script.js computes the html font-size to fit the screen
+      resolution / ratio and the whole HUD scales proportionally.
+      16px is the fallback for when JS has not run. */
 html {
     font-size: 16px;
 }
@@ -21,8 +21,8 @@ html, body {
 }
 
 :root {
-    /* FiveM CEF дээр backdrop-filter blur нь хар дөрвөлжин болдог тул
-       blur ашиглахгүй, оронд нь арай тунгалаг хатуу дэвсгэр хэрэглэв */
+    /* backdrop-filter blur turns into a black rectangle on FiveM CEF, so
+          blur is not used; a slightly translucent solid background is used instead */
     --bg: rgba(15, 15, 17, 0.66);
     --bg-soft: rgba(30, 30, 34, 0.6);
     --border: rgba(255, 255, 255, 0.08);
@@ -39,37 +39,37 @@ html, body {
     --c-stamina: #22c55e;
     --c-lung: #38bdf8;
     --c-voice:  #e2e8f0;
-    --c-voice-on: #facc15;   /* ярих үед шар */
-    --c-engine: #14b8a6;     /* машины хөдөлгүүрийн эрүүл мэнд (teal) */
+    --c-voice-on: #facc15;   /* yellow while talking */
+    --c-engine: #14b8a6;     /* vehicle engine health (teal) */
 
     /* =====================================================
-       RESPONSIVE — script.js бодит утгыг нь бөглөнө.
-       Энд байгаа нь 16:9 / safezone max үеийн fallback.
+          RESPONSIVE - script.js fills in the real values.
+          The ones here are fallbacks for 16:9 / max safezone.
        ===================================================== */
-    --hud-scale: 1;        /* мэдээллийн зорилгоор (font-size-д хэрэглэгдэнэ) */
-    --safe-x: 0px;         /* GTA safezone — хэвтээ зай (px) */
-    --safe-y: 0px;         /* GTA safezone — босоо зай (px) */
-    --mm-x: 0px;           /* minimap зүүн ирмэг, дэлгэцийн зүүнээс (px) */
-    --mm-w: 25vh;          /* minimap өргөн = resY / 4 */
-    --mm-h: 17.62vh;       /* minimap өндөр = resY / 5.674 */
-    --mm-b: 0px;           /* minimap доод ирмэг, дэлгэцийн доороос (px) */
-    --sp-fit: 1;           /* speedometer-ийн нэмэлт багасгалт (нарийн дэлгэц) */
-    --sp-reserved: 0px;    /* speedometer баруун доод буланд эзэлсэн өргөн */
+    --hud-scale: 1;        /* for information only (used in font-size) */
+    --safe-x: 0px;         /* GTA safezone - horizontal inset (px) */
+    --safe-y: 0px;         /* GTA safezone - vertical inset (px) */
+    --mm-x: 0px;           /* minimap left edge, from the screen's left (px) */
+    --mm-w: 25vh;          /* minimap width = resY / 4 */
+    --mm-h: 17.62vh;       /* minimap height = resY / 5.674 */
+    --mm-b: 0px;           /* minimap bottom edge, from the screen's bottom (px) */
+    --sp-fit: 1;           /* extra shrink for the speedometer (narrow screens) */
+    --sp-reserved: 0px;    /* width the speedometer occupies in the bottom-right corner */
 }
 
 /* hidden util */
 .is-hidden { opacity: 0 !important; transform: translateY(0.5rem); pointer-events: none; }
 
 /* =========================================================
-   STATUS — зүүн доод
+      STATUS - bottom left
    ========================================================= */
 .status-wrap {
     position: fixed;
-    /* minimap-ийн баруун талд. Minimap-ийн өргөн/өндөр нь дэлгэцийн өндөр ба
-       aspect ratio-оос хамаардаг тул JS-ээс ирсэн хувьсагчид дээр тулгуурлана. */
+    /* to the right of the minimap. The minimap's width / height depend on the screen height and
+          aspect ratio, so this relies on variables coming from JS. */
     left: calc(var(--mm-x) + var(--mm-w) + 1rem);
     bottom: calc(var(--mm-b) + 1.625rem);
-    /* Нарийн дэлгэцэнд (4:3, 800x600) баруун тийш халихгүйгээр мөр тасална */
+    /* On narrow screens (4:3, 800x600) wrap rows without overflowing to the right */
     max-width: calc(100vw - var(--mm-x) - var(--mm-w) - var(--sp-reserved) - 1.5rem);
     display: flex;
     flex-wrap: wrap-reverse;
@@ -128,12 +128,12 @@ html, body {
 .status-circle[data-key="voice"]   .fill { stroke: var(--c-voice); }
 .status-circle[data-key="engine"]  .fill { stroke: var(--c-engine); }
 
-/* Хөдөлгүүрийн эрүүл мэнд бага (<30%) үед улаан болж анхааруулна */
+/* Turns red as a warning when engine health is low (<30%) */
 .status-circle[data-key="engine"].low .fill { stroke: var(--c-health); }
 .status-circle[data-key="engine"].low .icon svg { fill: var(--c-health); }
 .status-circle[data-key="engine"].low { animation: voicePulse 1s ease-in-out infinite; }
 
-/* Voice (микрофон) — ярьж байх үед ногоон болж гэрэлтэнэ */
+/* Voice (microphone) - turns green and glows while talking */
 .status-circle[data-key="voice"] .icon svg { fill: var(--c-voice); }
 .status-circle[data-key="voice"].talking .fill { stroke: var(--c-voice-on); }
 .status-circle[data-key="voice"].talking .icon svg {
@@ -167,7 +167,7 @@ html, body {
 }
 
 /* =========================================================
-   INFO КАРТ — зүүн дээд
+      INFO CARD - top left
    ========================================================= */
 .info-wrap {
     position: fixed;
@@ -211,14 +211,14 @@ html, body {
 .info-chip.bank { color: #7dd3fc; }
 
 /* =========================================================
-   STREET / COMPASS — дэлгэцийн дээд гол
+      STREET / COMPASS - top center of the screen
    ========================================================= */
 .street-wrap {
     position: fixed;
     top: calc(var(--safe-y) + 0.75rem);
     left: 50%;
     transform: translateX(-50%);
-    /* Нарийн дэлгэцэнд гудамжны нэрс дэлгэцээс халихгүй */
+    /* Street names do not overflow the screen on narrow screens */
     max-width: calc(100vw - 2 * var(--safe-x) - 1.5rem);
     display: flex;
     align-items: center;
@@ -227,10 +227,10 @@ html, body {
     transition: opacity 0.3s ease;
 }
 
-/* hidden util-ийн translateY-г дарж голлуулсан хэвээр нуух */
+/* override the hidden util's translateY and stay hidden while centered */
 .street-wrap.is-hidden { transform: translateX(-50%) translateY(-0.5rem); }
 
-/* зүүн / баруун огтлолцох гудамжны нэр */
+/* left / right intersecting street names */
 .street-side {
     min-width: 5.625rem;
     max-width: 10.625rem;
@@ -245,7 +245,7 @@ html, body {
 .street-side.left  { text-align: right; }
 .street-side.right { text-align: left; }
 
-/* гол хэсэг — өнцөг + одоогийн гудамж */
+/* center part - angle + current street */
 .street-center {
     display: flex;
     flex-direction: column;
@@ -281,7 +281,7 @@ html, body {
 }
 
 /* =========================================================
-   SPEEDOMETER — баруун доод
+      SPEEDOMETER - bottom right
    ========================================================= */
 .speedo-wrap {
     position: fixed;
@@ -290,16 +290,16 @@ html, body {
     transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-/* Зөвхөн сонгосон загварыг харуулна.
-   --sp-fit: намхан / нарийн дэлгэцэнд (ж: 800x600 дээрх air, moto, modernpro)
-   хэмжүүр дэлгэцийг хэт эзлэхээс сэргийлж script.js-ээс тавигдана. */
+/* Shows only the selected style.
+      --sp-fit: set from script.js on short / narrow screens (e.g. air, moto, modernpro
+      at 800x600) so the gauge does not take up too much of the screen. */
 .sp {
     display: none;
     transform: scale(var(--sp-fit, 1));
-    transform-origin: 100% 100%;   /* баруун доод булангаас багасна */
+    transform-origin: 100% 100%;   /* shrinks from the bottom-right corner */
 }
 
-/* Тоглогч гараар зөөсөн үед left/top-оос тоологддог тул зүүн дээд булангаас */
+/* When moved by the player it is anchored from left/top, so from the top-left corner */
 .speedo-wrap.free .sp { transform-origin: 0 0; }
 .speedo-wrap[data-style="modernpro"] .sp-modernpro { display: block; }
 .speedo-wrap[data-style="ev"]        .sp-ev        { display: block; }
@@ -311,7 +311,7 @@ html, body {
 
 .speedo-ring { position: relative; width: 14.75rem; height: 14.75rem; }
 
-/* Цайвар дэвсгэр дээр уншигдахуйц байхын тулд бараан дугуй ар талд */
+/* Dark circle behind it so it is readable on a light background */
 .speedo-ring::before {
     content: '';
     position: absolute;
@@ -324,7 +324,7 @@ html, body {
     position: relative;
     width: 100%;
     height: 100%;
-    transform: rotate(135deg);     /* 270° gauge, доод тал нээлттэй */
+    transform: rotate(135deg);     /* 270° gauge, open at the bottom */
 }
 
 .ring-track {
@@ -409,14 +409,14 @@ html, body {
 .speedo-icons .ico.engine.off svg { fill: #ef4444; }
 .speedo-icons .ico.engine.on svg { fill: #22c55e; }
 
-/* Indicator icon-уудын ерөнхий төлөв (бүх загварт) */
+/* General state of the indicator icons (all styles) */
 .ico { display: flex; align-items: center; gap: 0.1875rem; color: #cbd5e1; font-weight: 700; }
 .ico svg { width: 0.9375rem; height: 0.9375rem; fill: #cbd5e1; transition: fill 0.15s, filter 0.15s; }
 .ico.fuel.low svg, .ico.fuel.low span { fill: var(--c-hunger); color: var(--c-hunger); }
 .ico.engine.off svg { fill: #ef4444; }
 .ico.engine.on svg { fill: #22c55e; }
 
-/* Бүсээ зүүгээгүй үед — тод улаан, гэрэлтэж анивчина (сайн анзаарагдахуйц) */
+/* When the seatbelt is not fastened - bright red, glowing and blinking (easy to notice) */
 .ico.belt svg { width: 1.0625rem; height: 1.0625rem; }
 .ico.belt.on svg {
     fill: #ef4444;
@@ -425,8 +425,8 @@ html, body {
 }
 @keyframes beltWarn { 50% { opacity: 0.3; } }
 
-/* Ойрын / холын гэрэл telltale — унтраалттай үед бүдэг, асахад тод гэрэлтэнэ.
-   .on = ойрын гэрэл (ногоон), .high = холын гэрэл (тод цэнхэр, авто стандарт). */
+/* Low / high beam telltale - dim when off, glows bright when on.
+      .on = low beam (green), .high = high beam (bright blue, automotive standard). */
 .ico.beam svg { width: 1.0625rem; height: 1.0625rem; fill: #4b5563; }
 .ico.beam.on svg {
     fill: #22c55e;
@@ -437,7 +437,7 @@ html, body {
     filter: drop-shadow(0 0 0.4375rem rgba(63,169,245,1));
 }
 
-/* ===== Style: MODERN PRO (аналог cluster) ===== */
+/* ===== Style: MODERN PRO (analog cluster) ===== */
 .sp-modernpro { position: relative; }
 .mp-cluster {
     display: block;
@@ -467,7 +467,7 @@ html, body {
     gap: 1rem;
 }
 
-/* ===== Style: MOTO (мотоциклын хос аналог хэмжүүр) ===== */
+/* ===== Style: MOTO (motorcycle dual analog gauges) ===== */
 .moto-body {
     width: 26.25rem;
     background: linear-gradient(180deg, #18191b 0%, #050506 100%);
@@ -482,7 +482,7 @@ html, body {
     height: auto;
     filter: drop-shadow(0 0.3125rem 0.875rem rgba(0,0,0,0.6));
 }
-/* Chrome bezel + хар нүүр */
+/* Chrome bezel + black face */
 .moto-bezel { fill: none; stroke: #cfd4d8; stroke-width: 4; }
 .moto-bezel2 { fill: none; stroke: #6b7176; stroke-width: 1.5; }
 .moto-face { fill: #060606; }
@@ -493,11 +493,11 @@ html, body {
 .moto-cap { fill: #c8ccd0; font-weight: 700; letter-spacing: 0.0312rem; }
 .moto-needle { fill: #ff2e1a; }
 .moto-hub { fill: #1a1b1d; stroke: #c9ced2; stroke-width: 1.6; }
-/* Odometer цонх */
+/* Odometer window */
 .moto-odo-box { fill: #0d0d0e; stroke: #3a3d40; stroke-width: 1; }
 .moto-odo-txt { fill: #f4f6f8; font-weight: 800; letter-spacing: 0.125rem; font-family: 'Consolas','Courier New',monospace; }
 
-/* Доод заагч гэрлүүд */
+/* Bottom indicator lights */
 .moto-tells {
     display: flex;
     justify-content: center;
@@ -518,14 +518,14 @@ html, body {
 .moto-tell svg { width: 100%; height: 100%; fill: currentColor; }
 .moto-tell.neutral { font-size: 0.9375rem; font-weight: 900; color: #16d65a; }
 .moto-tell.turn { color: #16d65a; }
-.moto-tell.beam { color: #16d65a; }          /* ойрын гэрэл = ногоон */
-.moto-tell.beam.high { color: #3fa9f5; }     /* холын гэрэл = тод цэнхэр */
-/* Идэвхтэй үед гэрэлтэнэ */
+.moto-tell.beam { color: #16d65a; }          /* low beam = green */
+.moto-tell.beam.high { color: #3fa9f5; }     /* high beam = bright blue */
+/* Glows when active */
 .moto-tell.on { opacity: 1; filter: drop-shadow(0 0 0.3125rem currentColor); }
 .moto-tell.blink { opacity: 1; filter: drop-shadow(0 0 0.3125rem currentColor); animation: motoBlink 0.5s steps(1) infinite; }
 @keyframes motoBlink { 50% { opacity: 0.2; filter: none; } }
 
-/* ===== Style: EV (цахилгаан машины дижитал кластер) ===== */
+/* ===== Style: EV (electric vehicle digital cluster) ===== */
 .sp-ev { color: #e7edf2; }
 .ev-card {
     width: 26.875rem;
@@ -547,12 +547,12 @@ html, body {
 .ev-temp { color: #cbd5e1; }
 .ev-mode { color: #34d399; font-weight: 800; letter-spacing: 0.025rem; }
 .ev-clock { color: #cbd5e1; }
-/* EV кластерийн дээд мөр дэх гэрлийн telltale — мөртэй таарсан жижиг хэмжээ */
+/* Light telltale in the top row of the EV cluster - small size matching the row */
 .ev-beam svg { width: 0.9375rem; height: 0.9375rem; }
 
 .ev-main { display: flex; align-items: center; gap: 0.625rem; padding-top: 0.625rem; }
 
-/* Зүүн Eco панель */
+/* Left Eco panel */
 .ev-left { width: 9.375rem; }
 .ev-ecotitle { font-size: 0.75rem; font-weight: 700; color: #9fb0bd; }
 .ev-score { font-size: 0.75rem; font-weight: 700; color: #cbd5e1; margin: 0.125rem 0 0.5rem; }
@@ -586,7 +586,7 @@ html, body {
     padding: 0.125rem 0.5rem;
 }
 
-/* Баруун хэмжүүр */
+/* Right gauge */
 .ev-right { position: relative; width: 10.5rem; height: 10.5rem; flex: 0 0 auto; margin-left: auto; }
 .ev-ring { width: 10.5rem; height: 10.5rem; transform: rotate(135deg); }
 .ev-track { fill: none; stroke: rgba(255,255,255,0.10); stroke-width: 7; stroke-dasharray: 405.3 540.4; stroke-linecap: round; }
@@ -644,7 +644,7 @@ html, body {
     background: repeating-linear-gradient(90deg, #fff 0 0.375rem, transparent 0.375rem 0.625rem); }
 .retro-icons { display: flex; gap: 1rem; justify-content: center; }
 
-/* ===== Style: BIKE (унадаг дугуйн компьютер LCD) ===== */
+/* ===== Style: BIKE (bicycle computer LCD) ===== */
 .sp-bike { font-family: 'Inter', sans-serif; }
 .bike-body {
     width: 12.25rem;
@@ -674,7 +674,7 @@ html, body {
 .bike-left { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
 .bike-cap { font-size: 0.5625rem; font-weight: 700; opacity: 0.85; }
 
-/* эргэдэг цэгэн индикатор */
+/* rotating dot indicator */
 .bike-spinner { position: relative; width: 1.625rem; height: 1.625rem; }
 .bike-spinner i {
     position: absolute;
@@ -711,7 +711,7 @@ html, body {
 .bike-btns { display: flex; justify-content: space-between; padding: 0.375rem 0.875rem 0.125rem; }
 .bike-btn { color: #e7e7e7; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.0312rem; }
 
-/* ===== Style: AIR (нисэхийн багажийн самбар) ===== */
+/* ===== Style: AIR (aviation instrument panel) ===== */
 .av-panel {
     background: linear-gradient(180deg, #1a1c1e 0%, #0c0d0e 100%);
     border: 0.125rem solid #2a2d30;
@@ -752,7 +752,7 @@ html, body {
 .av-lubber { fill: #ffd400; }
 
 /* =========================================================
-   HUD EDITOR — тохиргооны цэс (drag-to-move)
+      HUD EDITOR - settings menu (drag-to-move)
    ========================================================= */
 .hud-editor {
     position: fixed;
@@ -761,10 +761,10 @@ html, body {
     display: none;
     align-items: flex-start;
     justify-content: center;
-    /* Намхан дэлгэцэнд (600px) цэс дэлгэцээс халихгүй */
+    /* On short screens (600px) the menu does not overflow the screen */
     padding-top: clamp(0.75rem, 8vh, 5.625rem);
     background: rgba(0, 0, 0, 0.35);
-    /* ЧУХАЛ: overlay өөртөө клик татахгүй — HUD элементүүдийг чирэх боломжтой */
+    /* IMPORTANT: the overlay does not capture clicks itself - HUD elements can be dragged */
     pointer-events: none;
 }
 .hud-editor.open { display: flex; }
@@ -847,7 +847,7 @@ html, body {
     margin-bottom: 0.5rem;
 }
 
-/* Speedo загвар сонгох grid */
+/* Speedo style selection grid */
 .style-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -881,7 +881,7 @@ html, body {
 .prev-retro em { font-style: normal; font-size: 1.375rem; font-weight: 900; letter-spacing: 0.125rem; }
 .style-name { font-size: 0.7188rem; font-weight: 700; text-align: center; }
 
-/* Нэгж сонгогч (segment) */
+/* Unit selector (segment) */
 .seg {
     display: flex;
     background: rgba(255,255,255,0.05);
@@ -904,7 +904,7 @@ html, body {
 }
 .seg button.active { background: #38bdf8; color: #0b0b0d; }
 
-/* ----- Хэл сонгох grid ----- */
+/* ----- Language selection grid ----- */
 .lang-seg {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -948,23 +948,23 @@ html, body {
 .drag-bar b { color: #38bdf8; }
 .drag-bar .editor-btn { flex: 0 0 auto; }
 
-/* Edit горимд — зөөж болох элементүүд тодорч, overlay-ийн дээр гарна */
+/* In edit mode - movable elements stand out and appear above the overlay */
 .editable {
     outline: 0.125rem dashed #38bdf8;
     outline-offset: 0.375rem;
     border-radius: 0.5rem;
     cursor: move;
-    z-index: 10001;             /* dim overlay (9999)-ийн дээр */
+    z-index: 10001;             /* above the dim overlay (9999) */
     pointer-events: auto !important;
 }
-/* Edit горимд нуугдсан элементүүдийг ч харуулна (зөөж болохын тулд) */
+/* In edit mode also show hidden elements (so they can be moved) */
 body.editing #speedo,
 body.editing #street {
     opacity: 1 !important;
     pointer-events: auto !important;
 }
 
-/* ----- HUD хэмжээний слайдер ----- */
+/* ----- HUD size slider ----- */
 .scale-row {
     display: flex;
     align-items: center;

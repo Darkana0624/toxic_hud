@@ -1,14 +1,14 @@
 local Config = require 'config'
 
 -- ============================================================
---  Toxic HUD — ТАМХИ / ВЭЙП (server)
+--  Toxic HUD - CIGARETTES / VAPE (server)
 --
---  Item-ийн эзэмшил шалгах, зарцуулах, хайрцгаас ширхэг гаргах
---  ажиллагаа. Анимаци / prop нь client талд.
+--  Checks item ownership, consumes items and hands out cigarettes from
+--  packs. Animation / prop live on the client side.
 --
---  Эх сурвалж: lusty94_smoking (qb-core + qb-inventory). Энд
---  ox_inventory дээр дахин бичсэн бөгөөд stress бууралтыг
---  server/stress.lua дээгүүр дамжуулна (клиент итгэмжлэгдэхгүй).
+--  Source: lusty94_smoking (qb-core + qb-inventory). Rewritten here on
+--  ox_inventory; stress relief goes through server/stress.lua (the
+--  client is not trusted).
 -- ============================================================
 
 if not (Config.Smoking and Config.Smoking.enabled) then return end
@@ -16,7 +16,7 @@ if not (Config.Smoking and Config.Smoking.enabled) then return end
 local ox = GetResourceState('ox_inventory') == 'started'
 
 if not ox then
-    print('^3[toxic_hud]^7 ox_inventory эхлээгүй тул тамхины систем идэвхгүй')
+    print('^3[toxic_hud]^7 ox_inventory is not started, smoking system disabled')
     return
 end
 
@@ -24,9 +24,9 @@ local function count(src, item)
     return exports.ox_inventory:GetItemCount(src, item) or 0
 end
 
----Item ашиглах хүсэлтийг БҮРЭН server талд шалгаж гүйцэтгэнэ.
----Клиент зөвхөн "би энэ item-ийг ашиглаж дууслаа" гэж мэдэгдэнэ;
----үлдэгдэл, шаардлагатай item, stress — бүгд эндээс шийдэгдэнэ.
+---Validates an item-use request fully on the server.
+---The client only reports "I finished using this item"; remaining
+---stock, required items and stress are all decided here.
 lib.callback.register('toxic_hud:server:canSmoke', function(src, itemName)
     local cfg = Config.Smoking.items[itemName]
     if not cfg then return false, 'unknown' end
@@ -44,36 +44,36 @@ RegisterNetEvent('toxic_hud:server:finishSmoke', function(itemName)
     local cfg = Config.Smoking.items[itemName]
     if not cfg then return end
 
-    -- Дахин шалгана — progressCircle-ийн хугацаанд item алга болсон байж болно
+    -- Check again - the item may have disappeared during the progress bar
     if count(src, itemName) < 1 then return end
     if cfg.requires and count(src, cfg.requires.item) < 1 then return end
 
-    -- Хайрцаг задлахад ширхэг багтахгүй бол хайрцгийг АЛДАЛГҮЙ үлдээнэ
+    -- If the cigarettes from a pack cannot be carried, keep the pack
     if cfg.returns and not exports.ox_inventory:CanCarryItem(src, cfg.returns.item, cfg.returns.amount or 1) then
         TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Тамхи', description = 'Таны шуудай дүүрсэн байна', type = 'error',
+            title = 'Smoking', description = 'Your inventory is full', type = 'error',
         })
         return
     end
 
-    -- Үндсэн item-ийг зарцуулах (вэйп өөрөө үлдэнэ)
+    -- Consume the main item (the vape itself stays)
     if not cfg.keepItem then
         if not exports.ox_inventory:RemoveItem(src, itemName, 1) then return end
     end
 
-    -- Шаардлагатай item-ийг магадлалаар зарцуулах (вэйп шингэн)
+    -- Consume the required item with some probability (vape juice)
     if cfg.requires and cfg.consumesRequired and cfg.consumesRequired > 0 then
         if math.random() < cfg.consumesRequired then
             exports.ox_inventory:RemoveItem(src, cfg.requires.item, 1)
         end
     end
 
-    -- Хайрцаг задлах -> ширхэг олгох
+    -- Open a pack -> hand out cigarettes
     if cfg.returns then
         exports.ox_inventory:AddItem(src, cfg.returns.item, cfg.returns.amount or 1)
     end
 
-    -- Stress бууруулах
+    -- Reduce stress
     if cfg.stress and cfg.stress > 0 then
         exports[GetCurrentResourceName()]:RelieveStress(src, cfg.stress)
     end

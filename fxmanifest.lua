@@ -3,7 +3,7 @@ game 'gta5'
 
 name 'Toxic HUD'
 author 'LS'
-description 'Toxic HUD — status / vehicle HUD, minimap байрлал, cinematic mode, stress систем + тамхи-вэйп'
+description 'Toxic HUD - status / vehicle HUD, minimap position, cinematic mode, stress system + cigarettes / vape'
 version '2.3.0'
 
 lua54 'yes'
@@ -12,26 +12,26 @@ shared_script '@ox_lib/init.lua'
 
 client_scripts {
     'client.lua',
-    'client/stress.lua',    -- stress-ийн эх үүсвэрүүд (ЖОЛООДЛОГО ОРООГҮЙ)
-    'client/smoking.lua',   -- тамхи / вэйп — анимаци + prop
+    'client/stress.lua',    -- stress sources (DRIVING IS NOT INCLUDED)
+    'client/smoking.lua',   -- cigarettes / vape - animation + prop
 }
 
 server_scripts {
-    'server/stress.lua',    -- stress хадгалалт / өөрчлөлт / байгалийн бууралт
-    'server/smoking.lua',   -- ox_inventory item зарцуулалт
+    'server/stress.lua',    -- stress storage / changes / natural decay
+    'server/smoking.lua',   -- ox_inventory item consumption
 }
 
 ui_page 'html/index.html'
 
 files {
-    'bridge.lua',   -- client.lua дотор require 'bridge'-ээр ачаалагдана
-    'config.lua',   -- client / server талаас require 'config'-оор уншигдана
+    'bridge.lua',   -- loaded via require 'bridge' in client.lua
+    'config.lua',   -- read via require 'config' on client / server
     'html/index.html',
     'html/style.css',
     'html/skin.css',
     'html/script.js',
 }
 
--- Зөвхөн ox_lib шаардлагатай. Framework (qbx_core / qb-core / es_extended)
--- нь автомат илрэх тул заавал биш — standalone горимд ч ажиллана.
+-- Only ox_lib is required. The framework (qbx_core / qb-core / es_extended)
+-- is detected automatically and is optional - it also works standalone.
 dependency 'ox_lib'

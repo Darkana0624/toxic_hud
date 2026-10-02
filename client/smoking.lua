@@ -1,19 +1,20 @@
 local Config = require 'config'
 
 -- ============================================================
---  Toxic HUD — ТАМХИ / ВЭЙП (client)
+--  Toxic HUD - CIGARETTES / VAPE (client)
 --
---  Анимаци, prop, байрлал / эргэлтийн утгууд нь lusty94_smoking-
---  аас яг хэвээрээ авсан. Ажиллагааг нь ox_inventory + ox_lib
---  дээр дахин бичсэн (эх код qb-core/qb-inventory дээр байсан).
+--  Animations, props and offsets are taken as-is from lusty94_smoking.
+--  The logic is rewritten on top of ox_inventory + ox_lib (the original
+--  was built for qb-core/qb-inventory).
 --
---  Урсгал:
---    ox_inventory item ашиглах -> энэ эвент
---    -> server "болох уу?" шалгана (item, асаагуур/шингэн)
---    -> lib.progressCircle (анимаци + prop)
---    -> server item-ийг зарцуулж, stress-ийг бууруулна
+--  Flow:
+--    ox_inventory item use -> this event
+--    -> server asks "can they?" (item, lighter / juice)
+--    -> lib.progressCircle (animation / scenario + prop + effects)
+--    -> server consumes the item and reduces stress
 --
---  Item-ийг клиент өөрөө хасахгүй — бүх шийдвэр server дээр.
+--  The client never removes the item itself - every decision is made on
+--  the server.
 -- ============================================================
 
 if not (Config.Smoking and Config.Smoking.enabled) then return end
@@ -21,26 +22,71 @@ if not (Config.Smoking and Config.Smoking.enabled) then return end
 local busy = false
 
 local function notify(msg, kind)
-    lib.notify({ title = 'Тамхи', description = msg, type = kind or 'error' })
+    lib.notify({ title = 'Smoking', description = msg, type = kind or 'error' })
+end
+
+-- Puff cycle (ms): draw for the first part, then exhale smoke
+local CYCLE, DRAW = 6000, 2500
+
+---Runs the ember glow / smoke puffs until `state.running` becomes false.
+local function runEffects(ped, prop, fx, state)
+    lib.requestNamedPtfx('core')
+
+    local handBone = fx.handBone or 28422
+    local headBone = GetPedBoneIndex(ped, fx.headBone or 31086)
+    local started = GetGameTimer()
+    local puffed = false
+
+    while state.running and DoesEntityExist(ped) do
+        local t = (GetGameTimer() - started) % CYCLE
+        local drawing = t < DRAW
+
+        if drawing then puffed = false end
+
+        -- Cigarette tip glow (follows the hand) / vape LED (follows the prop)
+        if fx.ember or fx.led then
+            local p
+            if prop and DoesEntityExist(prop) then
+                p = GetEntityCoords(prop)
+            else
+                p = GetPedBoneCoords(ped, handBone, 0.08, 0.0, 0.0)
+            end
+            if fx.ember then
+                DrawLightWithRange(p.x, p.y, p.z, 255, 60, 10, 0.3, drawing and 1.4 or 0.4)
+            elseif drawing then
+                DrawLightWithRange(p.x, p.y, p.z, 40, 120, 255, 0.4, 1.0)
+            end
+        end
+
+        -- Smoke from the mouth (once per cycle, after the draw)
+        if not drawing and not puffed and fx.exhale then
+            puffed = true
+            UseParticleFxAsset('core')
+            StartParticleFxNonLoopedOnPedBone(fx.exhale, ped,
+                0.0, 0.1, 0.0, 0.0, 0.0, 0.0, headBone, fx.scale or 0.2, false, false, false)
+        end
+
+        Wait(0)
+    end
 end
 
 RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
-    -- ox_inventory нь item нэрийг data.name-аар дамжуулна
+    -- ox_inventory passes the item name as data.name
     local itemName = type(data) == 'table' and (data.name or data.item) or data
     local cfg = itemName and Config.Smoking.items[itemName]
     if not cfg then return end
 
     if busy then
-        notify('Та аль хэдийн юм хийж байна')
+        notify('You are already doing something')
         return
     end
 
     local ok, reason, extra = lib.callback.await('toxic_hud:server:canSmoke', false, itemName)
     if not ok then
         if reason == 'requires' then
-            notify(('Танд %s хэрэгтэй'):format(extra or '...'))
+            notify(('You need %s'):format(extra or '...'))
         elseif reason == 'missing' then
-            notify('Танд энэ зүйл алга')
+            notify("You don't have that item")
         end
         return
     end
@@ -49,8 +95,8 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
 
     local ped = cache.ped or PlayerPedId()
 
-    -- Prop / анимацийг өөрсдөө удирдана — ингэснээр prop дээр утаа / гэрэл
-    -- залгах боломжтой (lib.progressCircle prop-ийн заагчийг буцаадаггүй).
+    -- We manage the prop / animation ourselves so effects can be attached to
+    -- the prop (lib.progressCircle does not return the prop handle).
     local prop
     if cfg.prop and not cfg.scenario then
         local model = joaat(cfg.prop)
@@ -63,61 +109,14 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
             true, true, false, true, 1, true)
     end
 
-    local running = true
-    local fx = not cfg.scenario and cfg.fx or nil
-    if fx then
-        CreateThread(function()
-            lib.requestNamedPtfx('core')
-            local handles = {}
-            local function stopAll()
-                for i = 1, #handles do StopParticleFxLooped(handles[i], false) end
-            end
-
-            -- Тамхины үзүүрээс тасралтгүй гарах утаа
-            if fx.trail and prop then
-                UseParticleFxAsset('core')
-                handles[#handles + 1] = StartParticleFxLoopedOnEntity(fx.trail, prop,
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, fx.scale or 1.0, false, false, false)
-            end
-
-            -- 4 секундын мөчлөг: 0-1.5с сорох (гэрэл тод) -> 1.5-4с амнаас утаа гаргах
-            local started = GetGameTimer()
-            local puffed = false
-            while running and DoesEntityExist(ped) do
-                local t = ((GetGameTimer() - started) % 4000) / 1000.0
-                local drag = t < 1.5
-
-                if drag then puffed = false end
-
-                -- Үзүүр улаасах / вэйпийн LED
-                if prop and DoesEntityExist(prop) and (fx.ember or fx.led) then
-                    local p = GetOffsetFromEntityInWorldCoords(prop, 0.0, 0.0, 0.0)
-                    if fx.ember then
-                        local glow = drag and 1.0 or 0.35
-                        DrawLightWithRange(p.x, p.y, p.z, 255, 60, 10, 0.35, 1.2 * glow)
-                    elseif drag then
-                        DrawLightWithRange(p.x, p.y, p.z, 40, 120, 255, 0.4, 1.0)
-                    end
-                end
-
-                -- Амнаас гарах утаа (мөчлөг бүрт нэг удаа)
-                if not drag and not puffed and fx.exhale then
-                    puffed = true
-                    UseParticleFxAsset('core')
-                    local h = StartParticleFxLoopedOnPedBone(fx.exhale, ped,
-                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 31086, fx.scale or 1.0, false, false, false)
-                    SetTimeout(1800, function() StopParticleFxLooped(h, false) end)
-                end
-
-                Wait(0)
-            end
-            stopAll()
-        end)
-    end
-
     if cfg.scenario then
         ClearPedTasks(ped)
         TaskStartScenarioInPlace(ped, cfg.scenario, 0, true)
+    end
+
+    local state = { running = true }
+    if cfg.fx then
+        CreateThread(function() runEffects(ped, prop, cfg.fx, state) end)
     end
 
     local done = lib.progressCircle({
@@ -130,30 +129,28 @@ RegisterNetEvent('toxic_hud:client:useSmoke', function(data)
         anim        = (not cfg.scenario and cfg.dict) and { dict = cfg.dict, clip = cfg.anim, flag = 49 } or nil,
     })
 
-    running = false
+    state.running = false
     if cfg.scenario then ClearPedTasks(ped) end
     if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
 
     if not done then
         busy = false
-        notify('Цуцлагдлаа')
+        notify('Cancelled')
         return
     end
 
-    -- Амь хасах (тамхи) — клиент талд л хийх боломжтой
+    -- Lose health (cigarettes) - only possible on the client
     if cfg.health and cfg.health > 0 then
-        local ped = cache.ped or PlayerPedId()
         SetEntityHealth(ped, math.max(101, GetEntityHealth(ped) - cfg.health))
     end
 
-    -- Хуяг нэмэх (тохиргоонд 0 бол алгасна)
+    -- Add armour (skipped when 0 in the config)
     if cfg.armour and cfg.armour > 0 then
-        local ped = cache.ped or PlayerPedId()
         SetPedArmour(ped, math.min(100, GetPedArmour(ped) + cfg.armour))
     end
 
     TriggerServerEvent('toxic_hud:server:finishSmoke', itemName)
 
-    Wait(500)   -- item spam-аас сэргийлэх бага зэргийн саатал
+    Wait(500)   -- small delay to prevent item spam
     busy = false
 end)

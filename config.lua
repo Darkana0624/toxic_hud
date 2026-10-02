@@ -1,147 +1,146 @@
 Config = {}
 
--- Framework сонголт:
---   'auto'       -> автоматаар илрүүлнэ (qbx_core / qb-core / es_extended)
+-- Framework selection:
+--   'auto'       -> detect automatically (qbx_core / qb-core / es_extended)
 --   'qbx'        -> QBox (qbx_core)
 --   'qb'         -> QBCore (qb-core)
 --   'esx'        -> ESX (es_extended)
---   'standalone' -> framework байхгүй (мөнгө / job / needs харагдахгүй)
+--   'standalone' -> no framework (money / job / needs are not shown)
 Config.Framework = 'qbx'
 
--- Цаг шинэчлэх давтамж (ms)
+-- Status refresh interval (ms)
 Config.UpdateInterval = 200
 
--- Юаны нэгж тэмдэг
+-- Currency prefix
 Config.MoneyPrefix = '$'
 
--- MPH ашиглах эсэх (false бол KMH)
+-- Use MPH (false = KMH)
 Config.UseMPH = true
 
--- Анхдагч хэл (тоглогч цэснээс өөрчилж болно, сонголт нь хадгалагдана).
--- Боломжтой утга: 'en' (English), 'ru' (Русский), 'zh' (中文),
---                 'ko' (한국어), 'fr' (Français), 'mn' (Монгол)
+-- Default language (the player can change it in the menu and the choice is saved).
+-- Available: 'en' (English), 'ru' (Русский), 'zh' (中文),
+--            'ko' (한국어), 'fr' (Français), 'mn' (Mongolian)
 Config.Language = 'en'
 
--- HUD-ийн анхдагч хэмжээ (масштаб).
--- HUD нь дэлгэцийн нягтрал/дүрсний харьцаанд автоматаар тохирдог (800x600-оос
--- 4K хүртэл, 4:3 / 16:10 / 16:9 / 21:9 / 32:9). Энэ утга нь тэрхүү авто
--- масштабын ДЭЭР үржигдэх ерөнхий коэффициент бөгөөд тоглогч /toxichud цэснээс
--- өөрийн хэмжээг (70% - 150%) сонговол түүнийг нь давуу эрхтэйгээр хэрэглэнэ.
+-- Default HUD size (scale).
+-- The HUD adapts automatically to the screen resolution / aspect ratio (800x600
+-- up to 4K; 4:3 / 16:10 / 16:9 / 21:9 / 32:9). This value is a general
+-- multiplier applied ON TOP of that automatic scale. If the player picks their
+-- own size (70% - 150%) in the /toxichud menu, that choice takes priority.
 Config.HudScale = 1.0
 
--- Status элементүүдийг харуулах эсэх
+-- Which status elements to show
 Config.ShowHunger = true
 Config.ShowThirst = true
-Config.ShowStress = true    -- Stress систем (доорх Config.Stress) идэвхтэй тул асаалттай
-Config.ShowStamina = true   -- Гүйх тэнхээ (stamina)
-Config.ShowVoice = true     -- Микрофон / voice range (pma-voice)
-Config.ShowLungCapacity = true  -- Уушигны багтаамж (усан доор амьсгалах хугацаа)
+Config.ShowStress = true    -- Stress system (Config.Stress below) is enabled
+Config.ShowStamina = true   -- Sprint stamina
+Config.ShowVoice = true     -- Microphone / voice range (pma-voice)
+Config.ShowLungCapacity = true  -- Lung capacity (time left to breathe underwater)
 
--- Уушигны багтаамж (LUNG CAPACITY)
---   maxTime      -> бүрэн уушигтай үед усан доор амьсгалах секунд. GTA-гийн
---                   анхдагч нь 10 сек. Өөр resource (SetPedMaxTimeUnderwater г.м)
---                   үүнийг нэмэгдүүлдэг бол энд ижил утга өгнө; бодит үлдэгдэл
---                   үүнээс их гарвал HUD өөрөө дээд хязгаарыг автоматаар өргөтгөнө.
---   hideWhenFull -> уушиг дүүрэн, усан дор биш үед зурвасыг нууна
+-- Lung capacity (LUNG CAPACITY)
+--   maxTime      -> seconds of air with full lungs. GTA's default is 10 s. If
+--                   another resource (SetPedMaxTimeUnderwater etc.) raises it,
+--                   give the same value here; if the real remaining time ever
+--                   exceeds it, the HUD raises its own maximum automatically.
+--   hideWhenFull -> hide the bar when lungs are full and the player is not underwater
 Config.LungCapacity = {
     maxTime      = 10.0,
     hideWhenFull = true,
 }
 
--- Speedometer-ийг зөвхөн машинд харуулах
+-- Show the speedometer only inside vehicles
 Config.ShowSpeedoOnlyInVehicle = true
 
--- Speedometer загварыг ЗӨВХӨН тээврийн хэрэгслийн төрөл шийднэ (тоглогч
--- гараар сольж чадахгүй). false болговол бүх машинд 'petrol' загвар гарна.
--- Автомат speedo загвар сонголт:
---   Нисдэг тэрэг (class 15)          -> 'heli'   (ротор RPM ring + өндөр)
---   Онгоц (class 16)                 -> 'air'    (нисэхийн 6 багаж)
---   Мотоцикл (class 8)               -> 'moto'   (хос аналог хэмжүүр)
---   Унадаг дугуй (class 13)          -> 'bike'   (LCD дугуйн компьютер)
---   Цахилгаан машин (доорх жагсаалт) -> 'ev'     (батерей / eco дижитал)
---   Дизель машин (доорх жагсаалт)    -> 'diesel' (торкын зурвас)
---   Бусад бүх машин                  -> 'petrol' (том тоо + RPM/FUEL багана)
+-- The speedometer style is decided ONLY by the vehicle type (players cannot
+-- change it). Set to false to use the 'petrol' style for every vehicle.
+-- Automatic speedo style selection:
+--   Helicopter (class 15)        -> 'heli'   (rotor RPM ring + altitude)
+--   Plane (class 16)             -> 'air'    (6 aviation instruments)
+--   Motorcycle (class 8)         -> 'moto'   (dual analog gauges)
+--   Bicycle (class 13)           -> 'bike'   (LCD bike computer)
+--   Electric car (list below)    -> 'ev'     (battery / eco digital)
+--   Diesel vehicle (list below)  -> 'diesel' (torque band)
+--   Everything else              -> 'petrol' (big number + RPM/FUEL bars)
 Config.AutoSpeedoStyle = true
 
 -- ============================================================
---  Цахилгаан тээврийн хэрэгслүүд -> 'ev' загвар
---  Жагсаалт нь qbx_core/shared/vehicles.lua доторх бодит машинуудаас
---  гаргасан (байхгүй model оруулаагүй). Шинэ машин нэмвэл энд бичнэ.
+--  Electric vehicles -> 'ev' style
+--  Taken from the real vehicles in qbx_core/shared/vehicles.lua
+--  (no non-existent models). Add new vehicles here.
 -- ============================================================
 Config.ElectricVehicles = {
-    -- GTA — цахилгаан суудлын машин
+    -- GTA - electric passenger cars
     'voltic', 'cyclone', 'tezeract', 'virtue',
     'imorgon', 'omnisegt', 'khamelion', 'raiden',
     'surge', 'dilettante', 'dilettante2', 'buffalo5',
     'iwagen', 'vivanite',
-    -- GTA — цахилгаан мото / жижиг
+    -- GTA - electric bikes / small
     'shotaro', 'powersurge', 'inductor', 'inductor2',
     'rcbandito',
-    -- GTA — цахилгаан ажлын тэрэг
+    -- GTA - electric work carts
     'caddy', 'caddy2', 'caddy3', 'airtug',
-    -- Алба хаагчийн цахилгаан хувилбар
+    -- Emergency service electric variants
     'tstudio_polraiden', 'tstudio_medraiden', 'tstudio_polomnisegt', 'tstudio_medomnisegt',
-    -- Add-on — бодит цахилгаан загварууд
+    -- Add-on - real electric models
     'model3', 'models', 'modelx', 'teslaroad',
     'teslapd', 'DLCyber', 'taycan', 'taycanani',
     'ocnetrongt', 'gmcev2', 'DLI8', 'mi8',
 }
 
 -- ============================================================
---  Дизель тээврийн хэрэгслүүд -> 'diesel' загвар
---  Жагсаалтад ч, дээрх ElectricVehicles-д ч байхгүй бүх машин
---  автоматаар 'petrol' загварыг авна.
+--  Diesel vehicles -> 'diesel' style
+--  Any vehicle in neither this list nor ElectricVehicles above
+--  automatically gets the 'petrol' style.
 -- ============================================================
 Config.DieselVehicles = {
-    -- Ачааны / чиргүүлтэй (commercial)
+    -- Trucks / trailers (commercial)
     'benson', 'biff', 'hauler', 'hauler2',
     'packer', 'phantom', 'phantom2', 'phantom3',
     'phantom4', 'pounder', 'pounder2', 'stockade',
     'stockade3', 'terbyte',
-    -- Аж үйлдвэрийн (industrial)
+    -- Industrial
     'bulldozer', 'cutter', 'dump', 'flatbed',
     'guardian', 'handler', 'rubble', 'tiptruck',
     'tiptruck2',
-    -- Ажлын / чирэх (utility)
+    -- Work / towing (utility)
     'docktug', 'forklift', 'ripley', 'sadler',
     'sadler2', 'scrap', 'towtruck', 'towtruck2',
     'towtruck3', 'towtruck4', 'tractor', 'tractor2',
     'tractor3', 'utillitruck', 'utillitruck2', 'utillitruck3',
-    -- Автобус / нийтийн үйлчилгээ (service)
+    -- Buses / public service
     'airbus', 'bus', 'coach', 'pbus2',
     'rentalbus', 'tourbus', 'brickade', 'brickade2',
     'trash', 'trash2', 'wastelander',
-    -- Онцгой байдал / цагдаа (хүнд)
+    -- Emergency / police (heavy)
     'ambulance', 'firetruk', 'pbus', 'riot',
     'riot2', 'policet', 'tstudio_polriot',
-    -- Хүргэлтийн фургон
+    -- Delivery vans
     'boxville', 'boxville2', 'boxville3', 'boxville4',
     'boxville6', 'pony', 'pony2', 'speedo',
     'speedo2', 'speedo4', 'taco',
-    -- Add-on — бодит дизель ачааны
+    -- Add-on - real diesel trucks
     'sw_sprinter', 'DLF450', 'madf350lift', 'raid',
     'RYGBus',
 }
 
--- Гудамжны нэр / speed limit харуулах
+-- Show street name / speed limit
 Config.ShowStreetInfo = true
 
 -- ============================================================
---  Minimap-ийн хүрээ (Status HUD "Minimap frame" горим)
---  Хүрээ нь GTA-гийн radar-ийн бодит байрлалыг нативуудаар бодож
---  автоматаар зэрэгцдэг. Гэхдээ minimap-ийг өөрчилдөг resource
---  (өргөтгөсөн газрын зураг, дугуй/дөрвөлжин minimap mod г.м)
---  байвал автомат тооцоо таарахгүй.
+--  Minimap frame (Status HUD "Minimap frame" mode)
+--  The frame aligns itself with GTA's real radar position, computed from
+--  natives. But if a resource changes the minimap (expanded map, round /
+--  square minimap mods etc.) the automatic calculation will not match.
 --
---  Тэр үед enabled = true болгож, доорх утгуудыг ДЭЛГЭЦИЙН ХУВИАР
---  (0.0 - 1.0) гараар өгнө. Тавиагүй (nil) талбарыг автомат
---  тооцоолсон утгаараа үлдээнэ.
---     x -> зүүн ирмэгээс дэлгэцийн өргөний хэдэн хувь
---     b -> доод ирмэгээс дэлгэцийн өндрийн хэдэн хувь
---     w -> minimap-ийн өргөн (дэлгэцийн өргөний хувиар)
---     h -> minimap-ийн өндөр (дэлгэцийн өндрийн хувиар)
+--  In that case set enabled = true and provide the values below as a
+--  FRACTION OF THE SCREEN (0.0 - 1.0). Fields left nil keep their
+--  automatically calculated value.
+--     x -> fraction of screen width from the left edge
+--     b -> fraction of screen height from the bottom edge
+--     w -> minimap width (fraction of screen width)
+--     h -> minimap height (fraction of screen height)
 --
---  Жишээ (1920x1080 дээр 340x224 px minimap, зүүн доод буланд 30/40 px):
+--  Example (340x224 px minimap at 1920x1080, 30/40 px from bottom-left):
 --     enabled = true, x = 30/1920, b = 40/1080, w = 340/1920, h = 224/1080
 -- ============================================================
 Config.MinimapOverride = {
@@ -153,127 +152,126 @@ Config.MinimapOverride = {
 }
 
 -- ============================================================
---  GTA-гийн ҮНДСЭН health / armour бар
---  Тоглоомын анхны ногоон (амь) ба цэнхэр (хуяг) зураас minimap-ийн
---  доор гарч ирдэг. Toxic HUD өөрөө амь / хуягийг харуулдаг тул
---  давхардуулахгүйн тулд нууна.
---  Нуулт нь "minimap" scaleform-ийн SETUP_HEALTH_ARMOUR аргаар
---  хийгддэг тул minimap.gfx файл солих шаардлагагүй.
+--  GTA's NATIVE health / armour bars
+--  The game's original green (health) and blue (armour) bars appear under
+--  the minimap. Toxic HUD already shows health / armour, so they are hidden
+--  to avoid duplicates.
+--  Hiding uses the "minimap" scaleform's SETUP_HEALTH_ARMOUR method, so no
+--  minimap.gfx replacement is needed.
 -- ============================================================
 Config.HideNativeHealthArmour = true
 
 -- ============================================================
---  STRESS СИСТЕМ
---  Stress нь qbx_core-ийн metadata.stress дотор хадгалагдаж,
---  мөн Player(src).state.stress statebag-аар бусад resource-д
---  нээлттэй байна (envi-bridge, jg-stress-addon г.м. уншина).
+--  STRESS SYSTEM
+--  Stress is stored in qbx_core's metadata.stress and is also exposed to
+--  other resources through the Player(src).state.stress statebag
+--  (envi-bridge, jg-stress-addon etc. read it).
 --
---  ЗАРЧИМ: stress нь "бараг мэдэгдэхгүй" байхаар тохируулсан —
---  өдөр тутмын тоглолтод бараг өсөхгүй, тамхи / вэйп татахад
---  шууд буурна. Доорх тоонууд ХУВЬ (0-100).
+--  PRINCIPLE: stress is tuned to be "almost unnoticeable" - it barely rises
+--  in everyday play and drops immediately when smoking / vaping.
+--  The numbers below are PERCENTAGES (0-100).
 -- ============================================================
 Config.Stress = {
     enabled = true,
 
-    -- Байгалийн бууралт: тодорхой хугацаа тутам тогтмол хэмжээгээр хасна.
-    decayInterval = 60,     -- секунд
-    decayAmount   = 1.0,    -- тухай бүрт хасах хувь
+    -- Natural decay: a fixed amount is removed at a fixed interval.
+    decayInterval = 60,     -- seconds
+    decayAmount   = 1.0,    -- percent removed each time
 
-    -- ═══════════ STRESS НЭМЭГДЭХ ═══════════
-    -- ЗҮГЭЭР ЖОЛООДОХ нь stress ӨГӨХГҮЙ. Зөвхөн МӨРГӨХ үед л нэмэгдэнэ.
+    -- ═══════════ STRESS GAIN ═══════════
+    -- DRIVING FAST gives NO stress. It only rises when you CRASH.
     gain = {
-        -- Машинаар мөргөх. Бие махбодын эвдрэлийн хэмжээгээр тооцно.
+        -- Vehicle crash. Measured by the body damage taken.
         crash = {
             enabled   = true,
-            minDamage = 40,    -- нэг мөргөлтөд эвдрэх хамгийн бага хэмжээ (1000-аас)
-            perDamage = 0.02,  -- эвдрэлийн нэгж тутамд нэмэх stress
-            maxPerHit = 6.0,   -- нэг мөргөлтөд нэмэгдэх дээд хязгаар
-            cooldown  = 3,     -- секунд
+            minDamage = 40,    -- minimum damage in a single crash (out of 1000)
+            perDamage = 0.02,  -- stress added per unit of damage
+            maxPerHit = 6.0,   -- cap per single crash
+            cooldown  = 3,     -- seconds
         },
 
-        -- Унах / тэнцвэрээ алдах. ls_core/antipunchspam нударга спам
-        -- хийхэд тоглогчийг унагадаг — тэр эвентийг сонсоно. Мөн бусад
-        -- шалтгаанаар (өндрөөс унах, мотоциклоос нисэх) ragdoll болоход
-        -- ч нэмэгдэнэ.
+        -- Falling / losing balance. ls_core/antipunchspam knocks the player
+        -- down when they spam punches - we listen to that event. It also
+        -- triggers on any other ragdoll (falling from height, being thrown
+        -- off a motorcycle).
         ragdoll = {
             enabled  = true,
             amount   = 1.5,
-            cooldown = 10,     -- секунд
+            cooldown = 10,     -- seconds
         },
 
-        -- Жижиг гэмтэл — амь буурах бүрт. Зодуулах / буудуулах / унах
-        -- зэрэг УНААГҮЙ үеийн бага зэргийн гэмтэлд зориулав.
+        -- Minor injury - every time health drops. For small damage that
+        -- is NOT a fall: being punched, shot, etc.
         injury = {
             enabled   = true,
-            minDrop   = 5,     -- нэг удаад алдсан хамгийн бага амь
-            perHp     = 0.25,  -- алдсан амь тутамд нэмэх stress
+            minDrop   = 5,     -- minimum health lost in one go
+            perHp     = 0.25,  -- stress added per health point lost
             maxPerHit = 8.0,
         },
 
-        -- Унаж / цус алдах — p_ambulancejob-ийн АЛБАН ЁСНЫ hook
+        -- Downed / bleeding out - OFFICIAL p_ambulancejob hook
         --   server: RegisterNetEvent('p_ambulancejob/onDeathStateChange')
         --   deathType: 'death' | 'bleeding' | 'recovering' | 'none'
-        -- Жижиг гэмтлээс тусад нь, хамаагүй том хэмжээтэй.
+        -- Separate from minor injury and much larger.
         downed = {
             enabled  = true,
-            bleeding = 12.0,   -- унаж цус алдаж эхлэхэд
-            death    = 20.0,   -- үхэх үед
+            bleeding = 12.0,   -- when going down and starting to bleed
+            death    = 20.0,   -- on death
 
-            -- Цус алдаж хэвтэх хугацаанд тасралтгүй нэмэгдэх.
-            -- LocalPlayer.state.deathType statebag-аар хянана.
+            -- Continuous gain while lying down bleeding.
+            -- Tracked via the LocalPlayer.state.deathType statebag.
             whileBleeding = {
                 enabled  = true,
                 amount   = 1.0,
-                interval = 15,   -- секунд
+                interval = 15,   -- seconds
             },
         },
     },
 
-    -- ═══════════ STRESS ТАЙЛАГДАХ ═══════════
+    -- ═══════════ STRESS RELIEF ═══════════
     relief = {
-        -- Хурдтай жолоодох — "салхинд гарах". Тогтмол хурдтай явахад
-        -- аажим тайлагдана. (Зогсох / удаан явахад тайлагдахгүй.)
+        -- Fast driving - "wind in your hair". Relieves slowly while holding
+        -- a steady high speed. (Stopping / slow driving does not relieve.)
         fastDriving = {
             enabled  = true,
-            minSpeed = 80,     -- км/ц — үүнээс дээш хурдтай байх ёстой
+            minSpeed = 80,     -- km/h - must be faster than this
             amount   = 0.6,
-            interval = 20,     -- секунд
+            interval = 20,     -- seconds
         },
 
-        -- GYM — prompt_anim_core_2_new-ийн hooks/hooks_server.lua дотор
-        --       onRep hook-оор холбогдсон. Дасгалын давталт бүрт.
-        --       (Тэнд хэмжээг өөрчилнө.)
+        -- GYM - connected via the onRep hook in
+        --       prompt_anim_core_2_new's hooks/hooks_server.lua. Per exercise
+        --       repetition. (The amount is changed there.)
 
-        -- ХООЛ / АРХИ — qbx_consumables өөрөө stress бууруулдаг
-        --       (config.lua дотор stressRelief талбартай) бөгөөд утгыг
-        --       statebag руу бичдэг. Toxic HUD түүнийг шууд дагана —
-        --       нэмэлт код шаардахгүй.
+        -- FOOD / ALCOHOL - qbx_consumables itself reduces stress (it has a
+        --       stressRelief field in its config.lua) and writes the value to
+        --       the statebag. Toxic HUD follows it directly - no extra code.
 
-        -- ТАМХИ / ВЭЙП — доорх Config.Smoking хэсэгт.
+        -- CIGARETTES / VAPE - see Config.Smoking below.
     },
 
     max = 100.0,
 }
 
 -- ============================================================
---  ТАМХИ / ВЭЙП — stress бууруулах
---  Анимаци, prop, item нэр, зураг нь lusty94_smoking-аас авсан.
---  Ажиллагаа нь ox_inventory + ox_lib дээр дахин бичигдсэн
---  (эх код нь qb-core/qb-inventory дээр байсан).
+--  CIGARETTES / VAPE - stress relief
+--  Animations, props, item names and images are taken from lusty94_smoking.
+--  The logic is rewritten on top of ox_inventory + ox_lib (the original
+--  was built for qb-core/qb-inventory).
 --
---  Item-үүдийг ox_inventory/data/items.lua дотор бүртгэсэн,
---  зургуудыг ox_inventory/web/images рүү хуулсан.
+--  Items are registered in ox_inventory/data/items.lua and the images
+--  are copied to ox_inventory/web/images.
 -- ============================================================
 Config.Smoking = {
     enabled = true,
 
-    -- Тамхины хайрцаг задлахад гардаг ширхэгийн item нэр
+    -- Item name of the single cigarette that opening a pack gives
     cigItem = 'cigs',
 
     items = {
-        -- ---- Хайрцгууд: задлахад cigs гарна, stress-д нөлөөлөхгүй ----
+        -- ---- Packs: opening gives cigs, no effect on stress ----
         ['redwoodpack'] = {
-            label = 'Redwood хайрцаг задалж байна',
+            label = 'Opening Redwood pack',
             duration = 6,
             returns = { item = 'cigs', amount = 20 },
             dict = 'amb@prop_human_parking_meter@female@base',
@@ -284,7 +282,7 @@ Config.Smoking = {
             rot  = vec3(2.0, 68.0, -32.0),
         },
         ['debonairepack'] = {
-            label = 'Debonaire хайрцаг задалж байна',
+            label = 'Opening Debonaire pack',
             duration = 6,
             returns = { item = 'cigs', amount = 20 },
             dict = 'amb@prop_human_parking_meter@female@base',
@@ -295,7 +293,7 @@ Config.Smoking = {
             rot  = vec3(2.0, 68.0, -32.0),
         },
         ['yukonpack'] = {
-            label = 'Yukon хайрцаг задалж байна',
+            label = 'Opening Yukon pack',
             duration = 6,
             returns = { item = 'cigs', amount = 20 },
             dict = 'amb@prop_human_parking_meter@female@base',
@@ -306,7 +304,7 @@ Config.Smoking = {
             rot  = vec3(2.0, 68.0, -32.0),
         },
         ['sixtyninepack'] = {
-            label = '69 Brand хайрцаг задалж байна',
+            label = 'Opening 69 Brand pack',
             duration = 6,
             returns = { item = 'cigs', amount = 20 },
             dict = 'amb@prop_human_parking_meter@female@base',
@@ -317,32 +315,44 @@ Config.Smoking = {
             rot  = vec3(2.0, 68.0, -32.0),
         },
 
-        -- ---- Татдаг зүйлс: stress бууруулна ----
+        -- ---- Smokables: reduce stress ----
         ['cigs'] = {
-            label = 'Тамхи татаж байна',
-            duration = 12,
-            requires = { item = 'lighter', label = 'Асаагуур' },  -- зарцуулагдахгүй
-            stress = 25.0,     -- бууруулах хувь
-            armour = 0,        -- lusty94 дээр 10 байсан; хуяг нэмэх нь HUD-д логикгүй
-            health = 2,        -- татахад амиас хасах (0 бол хасахгүй)
+            label = 'Smoking a cigarette',
+            duration = 30,
+            requires = { item = 'lighter', label = 'Lighter' },  -- not consumed
+            stress = 25.0,     -- percent of stress removed
+            armour = 0,        -- was 10 in lusty94; adding armour makes no sense for a HUD
+            health = 2,        -- health lost per cigarette (0 = none)
             -- Emote: ["smoke"] = { "scenario", "WORLD_HUMAN_SMOKING", "Smoke" }
-            -- Scenario нь өөрийн тамхи (үзүүр улаасах, утаа)-г өөрөө үүсгэдэг.
             scenario = 'WORLD_HUMAN_SMOKING',
+
+            -- The scenario's own smoke does not always render, so we add our
+            -- own particles + ember glow on the ped's hand / head.
+            --   exhale -> puff from the mouth (ptfx asset 'core')
+            --   ember  -> the cigarette tip glows red while drawing
+            --   handBone / headBone -> ped bones the effects are attached to
+            fx = {
+                exhale   = 'exp_grd_bzgas_smoke',
+                scale    = 0.12,
+                ember    = true,
+                handBone = 28422,   -- SKEL_R_Hand
+                headBone = 31086,   -- SKEL_Head
+            },
         },
         ['vape'] = {
-            label = 'Вэйп татаж байна',
-            duration = 12,
-            requires = { item = 'vapejuice', label = 'Вэйп шингэн' },
-            consumesRequired = 0.25,   -- 25% магадлалаар шингэн зарцуулна
-            keepItem = true,           -- вэйп өөрөө зарцуулагдахгүй
+            label = 'Vaping',
+            duration = 20,
+            requires = { item = 'vapejuice', label = 'Vape juice' },
+            consumesRequired = 0.25,   -- 25% chance to consume a juice
+            keepItem = true,           -- the vape itself is not consumed
             stress = 25.0,
             armour = 0,
             health = 0,
             fx = {
-                exhale = 'ent_anim_cig_exhale_mth',
-                scale  = 2.2,                         -- вэйпийн утаа өтгөн
+                exhale = 'exp_grd_bzgas_smoke',
+                scale  = 0.25,                        -- vape clouds are thicker
                 ember  = false,
-                led    = true,                        -- вэйпийн цэнхэр LED гэрэл
+                led    = true,                        -- blue vape LED glow
             },
             dict = 'amb@world_human_smoking@male@male_b@base',
             anim = 'base',
@@ -355,55 +365,56 @@ Config.Smoking = {
 }
 
 -- ============================================================
---  Minimap (radar)-ийн байрлал
---     'bottom-left' — GTA-гийн анхдагч (зүүн доод). Radar-ийг огт хөндөхгүй.
---     'top-right'   — баруун дээд булан.
+--  Minimap (radar) position
+--     'bottom-left' - GTA default (bottom left). The radar is untouched.
+--     'top-right'   - top-right corner.
 --
---  Байрлал өөрчлөгдөхөд HUD-ийн бусад хэсэг АВТОМАТААР дагана:
---    * Status frame (minimap-ийг тойрсон 4 бар) тэр булан руу шилжинэ
---    * Status тойргийн кластер minimap-ийн эсрэг тал руу шилжинэ
+--  When the position changes, the rest of the HUD follows AUTOMATICALLY:
+--    * The status frame (4 bars around the minimap) moves to that corner
+--    * The status circle cluster moves to the opposite side of the minimap
 --
---  Шилжих зайг дэлгэцийн нягтрал / дүрсний харьцаа / safezone-оос
---  АВТОМАТААР бодно. Тоглоомын гурван бүрдлийг (зураг / маск / бүдгэрэлт)
---  нэг ижил зайгаар шилжүүлдэг тул маск зурагнаасаа, компас газрын
---  зурагнаасаа хэзээ ч салахгүй.
+--  The shift distance is calculated AUTOMATICALLY from resolution / aspect
+--  ratio / safezone. The game's three components (image / mask / blur) are
+--  moved by the same distance, so the mask never separates from the image
+--  and the compass never separates from the map.
 --
---  ХЯЗГААРЛАЛТ (тоглоомын өөрийнх, зөөлтийг дагадаггүй хэсгүүд):
---    * "Bigmap" (Z товч) хэвээр зүүн доод буланд нээгдэнэ
---    * Үндсэн health / armour arc байрлал зөрнө — гэхдээ дээрх
---      HideNativeHealthArmour тэдгээрийг нууж байгаа тул нөлөөгүй
+--  LIMITATIONS (the game's own, parts that do not follow the move):
+--    * "Bigmap" (Z key) still opens at the bottom left
+--    * The native health / armour arc position will be off - but
+--      HideNativeHealthArmour above hides them, so it has no effect
 -- ============================================================
 Config.MinimapPosition = 'top-right'
 
--- Автомат тооцооны ДЭЭР нэмэх засвар (дэлгэцийн хувиар, 0.0 = засваргүй).
---     x эерэг = баруун тийш, y эерэг = дээш
--- Ихэвчлэн хэрэггүй. Minimap-ийг өөрчилдөг өөр resource байвал (дөрвөлжин
--- minimap, өргөтгөсөн газрын зураг г.м) 2-3 мянганы нэгжээр зөрж болно.
--- Тоглоом дундаас /mmpos <dx> <dy> гэж нударч олоод, гарсан утгыг энд бичнэ.
+-- Correction ADDED on top of the automatic calculation (screen fraction,
+-- 0.0 = no correction).
+--     positive x = right, positive y = up
+-- Usually not needed. If another resource modifies the minimap (square
+-- minimap, expanded map etc.) it can be off by 2-3 thousandths.
+-- Nudge it in game with /mmpos <dx> <dy> and put the resulting value here.
 Config.MinimapNudge = { x = 0.0, y = 0.0 }
 
--- Тоглогч minimap-ийг ӨӨРӨӨ хүссэн газраа тавьж болох эсэх.
--- true бол F7 -> "Байрлал засах" горимд minimap-ийн тэгш өнцөгтийг
--- төлөөлсөн хайрцаг гарч ирэх бөгөөд түүнийг чирснээр бодит radar
--- тэр байрлал руу шилжинэ. Сонголт нь бусад HUD элементийн хамт
--- хадгалагдаж, дахин холбогдоход сэргэнэ.
+-- Whether players may place the minimap WHEREVER they want.
+-- If true, in /toxichud -> "Edit layout" mode a box representing the
+-- minimap rectangle appears; dragging it moves the real radar to that
+-- position. The choice is saved along with the other HUD elements and
+-- restored on reconnect.
 --
--- Дээрх Config.MinimapPosition нь зөвхөн АНХДАГЧ байрлал болно —
--- тоглогч чирсэн бол түүний сонголт давуу эрхтэй. Цэсний Reset товч
--- minimap-ийг ч тоглоомын анхдагч байрлал руу буцаана.
+-- Config.MinimapPosition above is only the DEFAULT position - if the
+-- player has dragged it, their choice takes priority. The menu's Reset
+-- button also returns the minimap to the game's default position.
 Config.AllowPlayerMinimapMove = true
 
 -- ============================================================
---  CINEMATIC MODE — тоглогч HUD-ээ түр унтраах
---  Скриншот / видео бичихэд зориулав. Товчийг тоглогч FiveM-ийн
---  Settings > Key Bindings > FiveM хэсгээс дураараа сольж болно.
---  Чатаар: /cinematic
+--  CINEMATIC MODE - players temporarily hide the HUD
+--  For screenshots / video recording. Players can rebind the key in
+--  FiveM's Settings > Key Bindings > FiveM.
+--  Via chat: /cinematic
 -- ============================================================
 Config.Cinematic = {
-    Key        = 'F9',   -- анхдагч товч (тоглогч сольж болно)
-    HideRadar  = true,   -- minimap-ыг ч хамт унтраах уу
-    Bars       = false,  -- кино маягийн хар зураас (дээр/доор)
-    BarHeight  = 0.11,   -- зураас тус бүрийн өндөр, дэлгэцийн хувиар
+    Key        = 'F9',   -- default key (players can change it)
+    HideRadar  = true,   -- also hide the minimap
+    Bars       = false,  -- cinematic black bars (top / bottom)
+    BarHeight  = 0.11,   -- height of each bar, as a screen fraction
 }
 
 return Config

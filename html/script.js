@@ -3,15 +3,15 @@ const RING_LEN = 552.9; // 2 * PI * 88
 const RING_270 = 414.7; // 270/360 * RING_LEN
 
 let useMPH = true;
-// FiveM NUI frame-д суулгасан GetParentResourceName() нь бодит resource нэрийг
-// найдвартай буцаадаг тул config message-ийн timing-аас хамаарахгүй. Хэрэв ямар
-// нэг шалтгаанаар байхгүй бол folder нэр рүү (toxic_hud) fallback хийнэ. config
-// message ирвэл дахин шинэчлэгдэнэ.
+// The GetParentResourceName() injected into the FiveM NUI frame returns the
+// real resource name reliably, so it does not depend on the timing of the
+// config message. If for some reason it is missing, fall back to the folder name
+// (toxic_hud). It is updated again if a config message arrives.
 let resourceName = (typeof GetParentResourceName === 'function')
     ? GetParentResourceName()
     : 'toxic_hud';
 
-// ---- NUI callback руу илгээх ----
+// ---- Send to a NUI callback ----
 function post(name, data) {
     fetch(`https://${resourceName}/${name}`, {
         method: 'POST',
@@ -20,7 +20,7 @@ function post(name, data) {
     }).catch(() => {});
 }
 
-// Хариу буцаах NUI callback (KVP уншихад ашиглана)
+// NUI callback that returns a response (used to read KVP)
 function postCb(name, data) {
     return fetch(`https://${resourceName}/${name}`, {
         method: 'POST',
@@ -29,16 +29,16 @@ function postCb(name, data) {
     }).then((r) => r.json()).catch(() => ({}));
 }
 
-// Тохиргоог client KVP-д найдвартай хадгалах (localStorage сервер
-// дахин холбогдоход цэвэрлэгддэг тул).
+// Reliably save settings in the client KVP (since localStorage is cleared
+// when reconnecting to a server).
 function persist(key, value) {
     post('saveSetting', { key, value: value ?? '' });
 }
 
 // =========================================================
-//  ХЭЛНИЙ ТОХИРГОО (i18n)
-//  Зөвхөн тохиргооны цэсний текстийг орчуулна. Хэмжүүрийн
-//  техникийн шошго (SPEED, RPM, KT гэх мэт) олон улсын тул хэвээр.
+//  LANGUAGE SETTINGS (i18n)
+//  Only the settings menu text is translated. Gauge technical labels
+//  (SPEED, RPM, KT etc.) are international, so they stay as they are.
 // =========================================================
 const I18N = {
     en: {
@@ -147,8 +147,8 @@ const I18N = {
 
 let currentLang = 'en';
 
-// save=true үед л localStorage/KVP-д бичнэ (зөвхөн тоглогч өөрөө сонгоход).
-// Default/сэргээлтийн дуудалт visual-ыг л шинэчилнэ.
+// Only write to localStorage/KVP when save=true (only when the player picks it).
+// Default / restore calls only update the visuals.
 function setLanguage(lang, save = true) {
     if (!I18N[lang]) lang = 'en';
     currentLang = lang;
@@ -169,31 +169,31 @@ function setLanguage(lang, save = true) {
 
 // =========================================================
 //  RESPONSIVE LAYOUT
-//  Бүх нягтрал (800x600 -> 4K) ба бүх aspect ratio (4:3, 5:4,
-//  16:10, 16:9, 21:9, 32:9) дээр HUD зөв хэмжээтэй, minimap-тайгаа
-//  зэрэгцэж харагдахын тулд:
-//    * style.css бүхэлдээ rem-ээр бичигдсэн -> html font-size-ыг
-//      дэлгэцийн хэмжээнээс тооцоолж бүх HUD-г нэг дор масштаблана;
-//    * minimap (radar)-ийн байрлал/хэмжээг GTA-ийн томьёогоор бодож
-//      CSS хувьсагчаар дамжуулна (radar өргөн = resY/4, өндөр =
-//      resY/5.674 тул aspect ratio-оос хамаарна);
-//    * safezone-ийг тоглогчийн GTA тохиргооноос (client.lua) авна.
+//  On every resolution (800x600 -> 4K) and aspect ratio (4:3, 5:4,
+//  16:10, 16:9, 21:9, 32:9) the HUD should be the right size and line up
+//  with the minimap, so:
+//    * style.css is written entirely in rem -> the html font-size is
+//      computed from the screen size and scales the whole HUD at once;
+//    * the minimap (radar) position / size is computed with GTA's formula
+//      and passed through CSS variables (radar width = resY/4, height =
+//      resY/5.674, so it depends on the aspect ratio);
+//    * safezone is taken from the player's GTA settings (client.lua).
 // =========================================================
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const REF_W = 1920, REF_H = 1080;   // лавлагаа нягтрал (дизайны суурь)
+const REF_W = 1920, REF_H = 1080;   // reference resolution (design baseline)
 
-// GTA-аас ирэх дэлгэцийн мэдээлэл. safeZone-ийн GTA default нь ~0.9 тул
-// client.lua-аас бодит утга ирэх хүртэл үүнийг ашиглана.
-// mm* нь GTA-гийн radar-ийн тэгш өнцөгт (px) — client.lua-аас ирнэ.
+// Screen info coming from GTA. GTA's default safeZone is ~0.9, so use that
+// until the real value arrives from client.lua.
+// mm* is GTA's radar rectangle (px) - comes from client.lua.
 const screenInfo = { safeZone: 0.9, aspect: 0, resX: 0, resY: 0, mmX: 0, mmB: 0, mmW: 0, mmH: 0 };
 
-// Тоглогчийн гар тохиргоо (0.7 - 1.5). Авто масштабын дээр үржигдэнэ.
+// Player's manual setting (0.7 - 1.5). Multiplied on top of the auto scale.
 let userScale = 1;
 
-// Авто масштаб: жижиг дэлгэцэнд харьцангуй том, том дэлгэцэнд хэт томроогүй
-// байхаар дэд-шугаман (power 0.55) муруй ашиглав.
+// Auto scale: relatively large on small screens, not too large on big screens,
+// using a sub-linear (power 0.55) curve.
 //   800x600  -> ~0.65   1280x720 -> ~0.79   1920x1080 -> 1.00
 //   2560x1440-> ~1.17   3840x2160-> ~1.47   3440x1440 -> ~1.17
 function autoScale(w, h) {
@@ -201,7 +201,7 @@ function autoScale(w, h) {
     return clamp(Math.pow(base, 0.55), 0.58, 2.2);
 }
 
-// Дэлгэцийн бүх хэмжигдэхүүнийг дахин тооцоолж CSS-д тавина
+// Recompute all screen metrics and set them in CSS
 function computeLayout() {
     const w = window.innerWidth || REF_W;
     const h = window.innerHeight || REF_H;
@@ -211,8 +211,8 @@ function computeLayout() {
     root.style.fontSize = (16 * s).toFixed(3) + 'px';
     root.style.setProperty('--hud-scale', s.toFixed(4));
 
-    // ---- Safezone (GTA-ийн "Safe Zone Size" тохиргоо) ----
-    // Хоёр тэнхлэгт ижил хувиар доторшино.
+    // ---- Safezone (GTA's "Safe Zone Size" setting) ----
+    // Inset by the same fraction on both axes.
     const inset = clamp((1 - (screenInfo.safeZone || 1)) * 0.5, 0, 0.1);
     const safeX = Math.round(w * inset);
     const safeY = Math.round(h * inset);
@@ -220,10 +220,10 @@ function computeLayout() {
     root.style.setProperty('--safe-y', safeY + 'px');
 
     // ---- Minimap (radar) ----
-    // Тэгш өнцөгтийг client.lua нь GTA-гийн нативуудаар (GetAspectRatio /
-    // GetSafeZoneSize / GetActiveScreenResolution) бодож пикселээр илгээнэ.
-    // NUI цонхны хэмжээ тоглоомын нягтралаас зөрж болзошгүй тул харьцаагаар
-    // хөрвүүлнэ. Мэдээлэл ирээгүй байхад л ойролцоо тооцоог хэрэглэнэ.
+    // client.lua computes the rectangle with GTA natives (GetAspectRatio /
+    // GetSafeZoneSize / GetActiveScreenResolution) and sends it in pixels.
+    // The NUI window size may differ from the game's resolution, so convert by
+    // ratio. Only use the approximate calculation while no info has arrived.
     let mmX, mmB, mmW, mmH;
     if (screenInfo.mmW > 0 && screenInfo.mmH > 0) {
         const kx = w / (screenInfo.resX || w);
@@ -233,7 +233,7 @@ function computeLayout() {
         mmW = screenInfo.mmW * kx;
         mmH = screenInfo.mmH * ky;
     } else {
-        // aspect нь дэлгэц сунгасан үед w/h-ээс зөрдөг тул түүнийг эрхэмлэнэ
+        // aspect differs from w/h when the screen is stretched, so prefer it
         const aspect = screenInfo.aspect > 0 ? screenInfo.aspect : (w / h);
         mmX = safeX;
         mmB = safeY;
@@ -249,32 +249,32 @@ function computeLayout() {
     fitSpeedo();
 }
 
-// Speedometer-ийн загварууд өөр өөр өргөнтэй (нисэхийн самбар хамгийн том)
-// тул авто масштабын дараа ч нарийн/намхан дэлгэцэнд халих магадлалтай.
-// Идэвхтэй загварыг хэмжиж, шаардлагатай бол нэмж багасгана.
+// Speedometer styles have different widths (the aviation panel is largest),
+// so even after auto scaling they may overflow on narrow / short screens.
+// Measure the active style and shrink it further if needed.
 function fitSpeedo() {
     const wrap = document.getElementById('speedo');
     if (!wrap) return;
     const el = wrap.querySelector('.sp-' + wrap.getAttribute('data-style'));
     if (!el) return;
-    el.style.setProperty('--sp-fit', '1');          // хэмжихийн өмнө reset
-    const w = el.offsetWidth, h = el.offsetHeight;  // (transform нөлөөлөхгүй)
-    if (!w || !h) return;                           // нуугдсан үед алгасна
+    el.style.setProperty('--sp-fit', '1');          // reset before measuring
+    const w = el.offsetWidth, h = el.offsetHeight;  // (not affected by transform)
+    if (!w || !h) return;                           // skip while hidden
     const f = Math.min(1, (window.innerWidth * 0.45) / w, (window.innerHeight * 0.42) / h);
     el.style.setProperty('--sp-fit', f.toFixed(4));
 
-    // Хэмжүүр анхны байрандаа (баруун доод) байвал status тойргууд түүн рүү
-    // мөлхөхөөс сэргийлж эзэлсэн өргөнийг нь CSS-д мэдэгдэнэ. Тоглогч өөрөө
-    // зөөсөн (free) тохиолдолд байрлалыг нь хүндэтгэж нөөцлөхгүй.
+    // If the gauge is in its original place (bottom right), tell CSS the width
+    // it occupies so the status circles do not creep toward it. If the player
+    // moved it themselves (free), respect that position and reserve nothing.
     let reserved = 0;
     if (!wrap.classList.contains('free')) {
-        const r = el.getBoundingClientRect();   // (--sp-fit масштаб орсон)
+        const r = el.getBoundingClientRect();   // (includes the --sp-fit scale)
         reserved = Math.max(0, Math.round(window.innerWidth - r.left) + 12);
     }
     document.documentElement.style.setProperty('--sp-reserved', reserved + 'px');
 }
 
-// HUD-ийн гар масштабыг тохируулах (0.7 - 1.5)
+// Set the HUD's manual scale (0.7 - 1.5)
 function setHudScale(v, save = true) {
     userScale = clamp(parseFloat(v) || 1, 0.7, 1.5);
     const slider = document.getElementById('scale-range');
@@ -288,7 +288,7 @@ function setHudScale(v, save = true) {
     computeLayout();
 }
 
-// Дэлгэцийн хэмжээ өөрчлөгдөхөд (нягтрал солих / цонхны горим) дахин бодно
+// Recompute when the screen size changes (resolution change / window mode)
 let layoutRAF = null;
 window.addEventListener('resize', () => {
     if (layoutRAF) cancelAnimationFrame(layoutRAF);
@@ -296,7 +296,7 @@ window.addEventListener('resize', () => {
 });
 
 // =========================================================
-//  HUD EDITOR — элемент зөөх / байрлал хадгалах
+//  HUD EDITOR - move elements / save positions
 // =========================================================
 const POS_KEY = 'toxichud_pos';
 let editing = false;
@@ -306,9 +306,9 @@ function movables() {
     return document.querySelectorAll('[data-movable]');
 }
 
-// Байрлалыг дэлгэцийн хувь (0..1) хэлбэрээр хадгална — ингэснээр тоглогч
-// нягтрал/aspect ratio-гоо сольсон ч элементүүд харьцангуй байрандаа үлдэнэ.
-// Хуучин хувилбарын px утгыг (left/top) уншихдаа автоматаар хувь руу хөрвүүлнэ.
+// Positions are stored as a screen fraction (0..1) - so even if the player
+// changes resolution / aspect ratio, elements stay in the same relative place.
+// Old-version px values (left/top) are converted to fractions automatically when read.
 function loadPos() {
     let raw;
     try { raw = JSON.parse(localStorage.getItem(POS_KEY) || '{}'); }
@@ -323,7 +323,7 @@ function loadPos() {
         if (typeof p.x === 'number' && typeof p.y === 'number') {
             out[id] = { x: p.x, y: p.y };
         } else if (typeof p.left === 'number' && typeof p.top === 'number') {
-            out[id] = { x: p.left / w, y: p.top / h };   // legacy px -> хувь
+            out[id] = { x: p.left / w, y: p.top / h };   // legacy px -> fraction
         }
     }
     return out;
@@ -334,7 +334,7 @@ function storePos(obj) {
     persist('pos', json);
 }
 
-// Элементийг чөлөөтэй байрлуулах горимд оруулах
+// Put an element into free-positioning mode
 function makeFree(el) {
     el.style.position = 'fixed';
     el.style.right = 'auto';
@@ -343,12 +343,12 @@ function makeFree(el) {
     el.style.transform = 'none';
 }
 
-// Хадгалсан байрлалуудыг одоогийн дэлгэцэнд тааруулж хэрэглэх
+// Apply the saved positions to the current screen
 function applyPositions() {
     const saved = loadPos();
     movables().forEach((el) => {
-        // speedo-г positionSpeedo() тусад нь зохицуулна
-        // (air / moto загварын үед хадгалсан байрлалыг үл тоомсорлодог)
+        // speedo is handled separately by positionSpeedo()
+        // (it ignores the saved position for the air / moto styles)
         if (el.id === 'speedo') return;
         const p = saved[el.id];
         if (p) placeAt(el, p);
@@ -356,7 +356,7 @@ function applyPositions() {
     positionSpeedo();
 }
 
-// Элементийг хувиар өгсөн байрлалд тавих — дэлгэцээс гарахгүйгээр таслана
+// Place an element at a position given as a fraction - clamped so it does not leave the screen
 function placeAt(el, p) {
     makeFree(el);
     const w = window.innerWidth, h = window.innerHeight;
@@ -365,7 +365,7 @@ function placeAt(el, p) {
     el.style.top  = Math.round(clamp(p.y * h, 0, Math.max(0, h - r.height))) + 'px';
 }
 
-// KVP-аас сэргээсэн тохиргоог localStorage-д буулгаж дахин хэрэглэх
+// Write settings restored from KVP into localStorage and re-apply them
 function restoreFromKvp(kvp) {
     if (!kvp) return;
     if (kvp.pos)   localStorage.setItem(POS_KEY, kvp.pos);
@@ -374,10 +374,10 @@ function restoreFromKvp(kvp) {
     if (kvp.scale) localStorage.setItem('toxichud_scale', kvp.scale);
     if (kvp.statusLayout) localStorage.setItem('toxichud_status', kvp.statusLayout);
 
-    // Байрлал / загвар / нэгж / хэлийг дахин хэрэглэх
+    // Re-apply position / style / unit / language
     applyPositions();
-    // Дахин холбогдоход тоглогчийн сонгосон minimap байрлалыг client-д
-    // сануулна (radar бол тоглоомын элемент тул өөрөө сэргэдэггүй).
+    // On reconnect, remind the client of the player's chosen minimap position
+    // (the radar is a game element, so it does not restore itself).
     pushMinimapPos(loadPos().mmghost || null);
     if (kvp.unit) setUnit(kvp.unit === 'mph');
     if (I18N[kvp.lang]) setLanguage(kvp.lang, false);
@@ -385,28 +385,28 @@ function restoreFromKvp(kvp) {
     if (kvp.statusLayout) setStatusLayout(kvp.statusLayout, false);
 }
 
-// Тохиргооны цэс нээх
+// Open the settings menu
 function enterSettings() {
     document.getElementById('hud-editor').classList.add('open');
     document.getElementById('hud-editor').classList.remove('dragmode');
     document.body.classList.remove('editing');
     editing = false;
 }
-// Байрлал засах (drag) горим руу шилжих
+// Switch to edit-position (drag) mode
 function enterDrag() {
     editing = true;
     document.body.classList.add('editing');
     document.getElementById('hud-editor').classList.add('dragmode');
     movables().forEach((el) => el.classList.add('editable'));
 }
-// Drag горимоос цэс рүү буцах
+// Return from drag mode to the menu
 function exitDrag() {
     editing = false;
     document.body.classList.remove('editing');
     document.getElementById('hud-editor').classList.remove('dragmode');
     movables().forEach((el) => el.classList.remove('editable'));
 }
-// Бүгдийг хааж тоглоомд буцах
+// Close everything and return to the game
 function closeSettings() {
     editing = false;
     document.body.classList.remove('editing');
@@ -416,12 +416,12 @@ function closeSettings() {
     post('closeSettings');
 }
 
-// ---- Speedo загвар ----
-// Загварыг ЗӨВХӨН тээврийн хэрэгслийн төрөл шийднэ (client.lua-аас forceStyle
-// ирнэ). Тоглогч гараар сольж чадахгүй; ирээгүй тохиолдолд 'petrol'.
-// Машины HUD одоо ганц загвартай (Toxic HUD-аас портлосон .sp-toxic).
-// Өмнө нь машины төрлөөр 7 загвар сольдог байсан бөгөөд бүгд нэг DOM
-// дотор зэрэг байрлаж, ENG зураас нь давхарлах алдаа өгдөг байв.
+// ---- Speedo style ----
+// The style is decided ONLY by the vehicle type (forceStyle comes from
+// client.lua). The player cannot change it manually; 'petrol' if it has not arrived.
+// The vehicle HUD now has a single style (.sp-toxic ported from Toxic HUD).
+// Previously 7 styles switched by vehicle type, all living in one DOM
+// at once, which caused the ENG bar to overlap.
 const FALLBACK_STYLE = 'toxic';
 let forcedStyle = null;
 
@@ -431,20 +431,20 @@ function applyStyle(name) {
     el.setAttribute('data-style', name);
     positionSpeedo();
 }
-// Хадгалсан байрлал эсвэл default (баруун доод) руу буцаах
+// Return to the saved position or the default (bottom right)
 function positionSpeedo() {
     const el = document.getElementById('speedo');
     el.style.transform = '';
-    // Нисэх (air) болон мотоцикл (moto) самбар нь машины speedo-оос
-    // хамаагүй том тул хадгалсан байрлалыг үл тоомсорлож, үргэлж default
-    // баруун доод буланд харагдана.
+    // The aviation (air) and motorcycle (moto) panels are much larger than the
+    // vehicle speedo, so they ignore the saved position and always appear in
+    // the default bottom-right corner.
     const style = el.getAttribute('data-style');
     const saved = (style === 'air' || style === 'moto') ? null : loadPos()['speedo'];
     if (saved) {
-        el.classList.add('free');       // масштаб зүүн дээд булангаас тоологдоно
+        el.classList.add('free');       // scale is anchored from the top-left corner
         placeAt(el, saved);
     } else {
-        el.classList.remove('free');    // default: баруун доод булан
+        el.classList.remove('free');    // default: bottom-right corner
         el.style.position = '';
         el.style.left = el.style.top = el.style.right = el.style.bottom = el.style.margin = '';
     }
@@ -453,7 +453,7 @@ function positionSpeedo() {
 function refreshStyle() {
     applyStyle(forcedStyle || FALLBACK_STYLE);
 }
-// Унадаг дугуйн LCD талбаруудыг шинэчлэх
+// Update the bicycle's LCD fields
 function updateBike(d) {
     const kmh = (d.mps ?? 0) * 3.6;
     setAll('.sp-bike-speed', kmh.toFixed(1));
@@ -462,7 +462,7 @@ function updateBike(d) {
     document.querySelectorAll('.bike-spinner').forEach((s) => s.classList.toggle('spin', kmh > 0.6));
 }
 
-// EV дижитал кластер
+// EV digital cluster
 function updateEV(d) {
     const mph = (d.mps ?? 0) * 2.236936;
     const kmh = (d.mps ?? 0) * 3.6;
@@ -470,25 +470,25 @@ function updateEV(d) {
     if (d.clock) setAll('.sp-ev-clock', d.clock);
     if (d.temp != null) setAll('.sp-ev-temp', Math.round(d.temp * 9 / 5 + 32));   // °C -> °F
 
-    // Батерей (fuel% = цэнэг) ба үлдсэн зай
+    // Battery (fuel% = charge) and remaining range
     const batt = d.fuel ?? 0;
     document.querySelectorAll('.sp-ev-batt').forEach((e) => {
         e.style.width = batt + '%';
         e.style.background = batt < 15 ? 'var(--warn, #e0644a)' : 'var(--accent-2, #7a8a5e)';
     });
-    setAll('.sp-ev-range', Math.round(batt * 4));   // ~4 миль / %
+    setAll('.sp-ev-range', Math.round(batt * 4));   // ~4 miles / %
 
-    // Хурдны хайрцаг (P / R / D)
+    // Gear (P / R / D)
     let g = 'D';
     if (mph < 1) g = 'P';
     else if (d.gear === 0) g = 'R';
     setAll('.sp-ev-gear', g);
 
-    // Eco score (бага хүчээр өндөр)
+    // Eco score (higher with less power)
     const score = Math.max(0, Math.min(100, Math.round(100 - (d.rpm ?? 0) * 35)));
     setAll('.sp-ev-score', score);
 
-    // Power ring (хурдтай пропорциональ)
+    // Power ring (proportional to speed)
     const frac = Math.max(0, Math.min(1, mph / 160));
     document.querySelectorAll('.ev-power').forEach((r) => {
         r.style.strokeDasharray = `${(405.3 * frac).toFixed(1)} 540.4`;
@@ -496,7 +496,7 @@ function updateEV(d) {
 }
 
 // =========================================================
-//  AIR — нисэхийн багажийн самбар
+//  AIR - aviation instrument panel
 // =========================================================
 const AV = {
     asi: { ds: 225, span: 270, min: 0, max: 160, minor: 5, major: 20, lbl: 20, lblR: 0.64, green: [40, 140], fs: 9 },
@@ -511,7 +511,7 @@ function buildAv(svg, cfg) {
     const { ds, span, min, max } = cfg;
     const steps = Math.round((max - min) / cfg.minor);
     for (let i = 0; i <= steps; i++) {
-        if (cfg.full && i === steps) continue;     // 360°-д давхар tick гаргахгүй
+        if (cfg.full && i === steps) continue;     // do not draw a duplicate tick at 360°
         const v = min + i * cfg.minor;
         const f = (v - min) / (max - min);
         const deg = ds + f * span;
@@ -629,7 +629,7 @@ function updateAir(d) {
 
     setAvNeedle('rpm', clamp(d.rpm ?? 0, 0, 1));
 
-    // Attitude — roll (эргэлт) + pitch (хазайлт)
+    // Attitude - roll + pitch
     if (AV._att) {
         const roll = d.roll ?? 0, pitch = d.pitch ?? 0;
         AV._att.setAttribute('transform', `rotate(${(-roll).toFixed(1)} 60 60) translate(0 ${(pitch * 1.2).toFixed(1)})`);
@@ -648,7 +648,7 @@ function setUnit(mph) {
         .forEach((b) => b.classList.toggle('active', (b.dataset.unit === 'mph') === mph));
 }
 
-// ---- Status HUD зохион байгуулалт: 'frame' (minimap тойрсон) | 'rings' (тойрог) ----
+// ---- Status HUD layout: 'frame' (around the minimap) | 'rings' (circles) ----
 let statusLayout = 'frame';
 function setStatusLayout(v, save = true) {
     statusLayout = (v === 'rings') ? 'rings' : 'frame';
@@ -663,22 +663,22 @@ function setStatusLayout(v, save = true) {
 }
 
 // =========================================================
-//  ТОХИРГООГ CLIENT-ЭЭС ТАТАХ
-//  ЧУХАЛ: 'config' мессежийг resource эхлэхэд илгээдэг ч NUI хуудасны
-//  JS хараахан ачаалагдаагүй байвал тэр мессеж АЛДАГДАНА
-//  (SendNUIMessage нь дараалалд ордоггүй). Тэр үед screenInfo нь
-//  анхдагч утга дээрээ (safeZone 0.9, resX/resY 0) үлдэж, minimap-ийн
-//  тэгш өнцөгт буруу бодогдоод status хүрээ radar-аас хажуу тийш
-//  хазайдаг байсан. Тиймээс хуудас ачаалагдмагц ӨӨРӨӨ татна —
-//  client.lua-гийн loadSettings нь sendScreenInfo()-г мөн дуудна.
+//  PULLING SETTINGS FROM THE CLIENT
+//  IMPORTANT: the 'config' message is sent when the resource starts, but if the
+//  NUI page's JS has not loaded yet that message is LOST
+//  (SendNUIMessage does not queue). In that case screenInfo stayed at its
+//  default values (safeZone 0.9, resX/resY 0), the minimap rectangle was
+//  computed wrongly, and the status frame drifted sideways off the radar.
+//  So as soon as the page loads it pulls the data ITSELF -
+//  client.lua's loadSettings also calls sendScreenInfo().
 // =========================================================
 function pullSettings(cfg) {
     return postCb('loadSettings').then((kvp) => {
         kvp = kvp || {};
         restoreFromKvp(kvp);
 
-        // Серверийн анхдагчууд: 'config' мессежээс ирсэн бол түүнийг,
-        // үгүй бол loadSettings-ийн хариунаас (cfg* талбарууд) авна.
+        // Server defaults: use the 'config' message if it came,
+        // otherwise take them from the loadSettings reply (cfg* fields).
         const useMph = (cfg && cfg.useMPH !== undefined) ? cfg.useMPH : kvp.cfgUseMPH;
         const lang   = (cfg && cfg.lang   !== undefined) ? cfg.lang   : kvp.cfgLang;
         const scale  = (cfg && cfg.scale  !== undefined) ? cfg.scale  : kvp.cfgScale;
@@ -689,30 +689,30 @@ function pullSettings(cfg) {
         if (!localStorage.getItem('toxichud_lang') && I18N[lang]) setLanguage(lang, false);
         if (!localStorage.getItem('toxichud_scale') && scale) setHudScale(scale, false);
 
-        computeLayout();   // minimap-ийн шинэ тэгш өнцөгтөөр хүрээг байрлуулна
+        computeLayout();   // lay out the frame using the new minimap rectangle
     }).catch(() => {});
 }
 
-// Minimap-ийн байрлалыг client.lua руу дамжуулна (p = {x, y} дэлгэцийн хувь,
-// зүүн дээд булангаар; null = тоглоомын анхдагч руу буцаах).
+// Pass the minimap position to client.lua (p = {x, y} screen fraction,
+// from the top-left corner; null = return to the game default).
 function pushMinimapPos(p) {
     post('setMinimapPos', p || {});
 }
 
 function resetPositions() {
     localStorage.removeItem(POS_KEY);
-    persist('pos', '');   // KVP-аас бас устгана
-    pushMinimapPos(null);  // radar-ыг ч тоглоомын анхдагч байрлалд буцаана
+    persist('pos', '');   // also delete from KVP
+    pushMinimapPos(null);  // also return the radar to the game's default position
     movables().forEach((el) => {
         el.classList.remove('free');
         el.style.position = el.style.left = el.style.top = '';
         el.style.right = el.style.bottom = el.style.transform = el.style.margin = '';
     });
-    // Default байрлалд буцсаны дараа масштабыг дахин тааруулна
+    // After returning to the default positions, re-fit the scale
     computeLayout();
 }
 
-// Чирэх (drag) логик — элемент бүрийг тус тусад нь
+// Drag logic - each element separately
 document.addEventListener('mousedown', (e) => {
     if (!editing) return;
     const el = e.target.closest('[data-movable]');
@@ -739,19 +739,19 @@ document.addEventListener('mouseup', () => {
     if (!dragEl) return;
     const r = dragEl.getBoundingClientRect();
     const saved = loadPos();
-    // Дэлгэцийн хувиар хадгална — өөр нягтрал / aspect ratio дээр ч хадгалагдана
+    // Save as a screen fraction - persists on other resolutions / aspect ratios too
     saved[dragEl.id] = {
         x: +(r.left / window.innerWidth).toFixed(5),
         y: +(r.top / window.innerHeight).toFixed(5),
     };
     storePos(saved);
     if (dragEl.id === 'speedo') fitSpeedo();
-    // Minimap хайрцгийг чирсэн бол бодит radar-ыг ч зөөнө
+    // If the minimap box was dragged, move the real radar as well
     if (dragEl.id === 'mmghost') pushMinimapPos(saved.mmghost);
     dragEl = null;
 });
 
-// ESC дарж хаах / буцах
+// Close / go back with ESC
 document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const ed = document.getElementById('hud-editor');
@@ -761,8 +761,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Хадгалсан байрлал / загвар / нэгж / хэмжээг сэргээх
-    setHudScale(localStorage.getItem('toxichud_scale') || 1, false);   // computeLayout-г дуудна
+    // Restore saved position / style / unit / size
+    setHudScale(localStorage.getItem('toxichud_scale') || 1, false);   // calls computeLayout
     applyPositions();
     refreshStyle();
     setStatusLayout(localStorage.getItem('toxichud_status') || 'frame', false);
@@ -771,30 +771,30 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedLang = localStorage.getItem('toxichud_lang');
     setLanguage(I18N[savedLang] ? savedLang : 'en', false);
 
-    // Хадгалсан тохиргоо + minimap-ийн тэгш өнцөгтийг client-ээс шууд татна
-    // ('config' мессежийг хүлээхгүй — тэр нь хуудас ачаалагдахаас өмнө
-    //  илгээгдсэн бол алдагдсан байж болзошгүй).
+    // Pull the saved settings + minimap rectangle straight from the client
+    // (do not wait for the 'config' message - it may have been lost if it was
+    //  sent before the page loaded).
     pullSettings();
 
-    // Цэсний товчнууд
+    // Menu buttons
     document.getElementById('editor-close')?.addEventListener('click', closeSettings);
     document.getElementById('editor-reset')?.addEventListener('click', resetPositions);
     document.getElementById('btn-move')?.addEventListener('click', enterDrag);
     document.getElementById('drag-done')?.addEventListener('click', exitDrag);
 
-    // Нэгж сонгох
+    // Choose unit
     document.querySelectorAll('#unit-seg button').forEach((b) => {
         b.addEventListener('click', () => setUnit(b.dataset.unit === 'mph'));
     });
-    // Status HUD зохион байгуулалт сонгох
+    // Choose status HUD layout
     document.querySelectorAll('#status-seg button').forEach((b) => {
         b.addEventListener('click', () => setStatusLayout(b.dataset.status));
     });
-    // Хэл сонгох
+    // Choose language
     document.querySelectorAll('#lang-seg button').forEach((b) => {
         b.addEventListener('click', () => setLanguage(b.dataset.lang));
     });
-    // HUD хэмжээ (авто масштабын дээр нэмэлт тохируулга)
+    // HUD size (extra adjustment on top of the auto scale)
     const scaleRange = document.getElementById('scale-range');
     if (scaleRange) {
         scaleRange.addEventListener('input', () => setHudScale(scaleRange.value, false));
@@ -802,7 +802,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     document.getElementById('scale-reset')?.addEventListener('click', () => setHudScale(1));
 
-    // Загвар / хэмжээ бүрэн ачаалагдсаны дараа эцсийн тооцоо
+    // Final calculation once style / size have fully loaded
     requestAnimationFrame(computeLayout);
 });
 
@@ -810,8 +810,8 @@ window.addEventListener('DOMContentLoaded', () => {
 function setCircle(key, pct) {
     const clamped = Math.max(0, Math.min(100, pct ?? 0));
     document.querySelectorAll(`.status-circle[data-key="${key}"]`).forEach((el) => {
-        // 1) Шулуун бар (minimap хүрээ ба хөдөлгүүрийн эвдрэл) — div дүүргэлт.
-        //    Босоо бар нь өндрөөр, хэвтээ нь өргөнөөр дүүрнэ.
+        // 1) Straight bars (minimap frame and engine damage) - div fill.
+        //    Vertical bars fill by height, horizontal ones by width.
         const bar = el.querySelector('.bar-fill');
         if (bar) {
             if (el.classList.contains('sf-left') || el.classList.contains('sf-right')) {
@@ -821,7 +821,7 @@ function setCircle(key, pct) {
             }
             return;
         }
-        // 2) Тойрог — stroke-dashoffset
+        // 2) Circle - stroke-dashoffset
         const fill = el.querySelector('.fill');
         if (fill) fill.style.strokeDashoffset = CIRC - (CIRC * clamped) / 100;
     });
@@ -842,13 +842,13 @@ function gearLabel(gear) {
     return String(gear);
 }
 
-// Сонгосон бүх элементийн текстийг шинэчлэх (бүх speedo загварт нэг дор)
+// Update the text of all selected elements (all speedo styles at once)
 function setAll(sel, val) {
     document.querySelectorAll(sel).forEach((e) => { e.textContent = val; });
 }
 
 // =========================================================
-//  MODERN PRO — аналог хэмжүүрүүд (SVG)
+//  MODERN PRO - analog gauges (SVG)
 // =========================================================
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) {
@@ -856,7 +856,7 @@ function svgEl(tag, attrs) {
     for (const k in attrs) e.setAttribute(k, attrs[k]);
     return e;
 }
-// deg: дээрээс цагийн зүүний дагуу хэмжсэн өнцөг
+// deg: angle measured clockwise from the top
 function polar(cx, cy, r, deg) {
     const a = (deg - 90) * Math.PI / 180;
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -869,9 +869,9 @@ function arcPath(cx, cy, r, d0, d1) {
 }
 
 // =========================================================
-//  MOTO — мотоциклын сонгодог хос аналог хэмжүүр
-//  (зүүн: speedo km/h, баруун: tachometer x1000, дунд: түлш,
-//   speedo дотор odometer, доор заагч гэрлүүд)
+//  MOTO - classic dual analog motorcycle gauges
+//  (left: speedo km/h, right: tachometer x1000, middle: fuel,
+//   odometer inside the speedo, indicator lights below)
 // =========================================================
 const MOTO = {
     speedo: { cx: 120, cy: 116, r: 102, ds: 225, span: 270, min: 0, max: 250, minor: 10, major: 50,
@@ -884,12 +884,12 @@ const MOTO = {
 
 function buildMotoGauge(g, cfg) {
     const { cx, cy, r, ds, span, min, max, major, minor } = cfg;
-    // Chrome bezel + хар нүүр
+    // Chrome bezel + black face
     g.appendChild(svgEl('circle', { cx, cy, r: r, class: 'moto-bezel' }));
     g.appendChild(svgEl('circle', { cx, cy, r: r - 4, class: 'moto-bezel2' }));
     g.appendChild(svgEl('circle', { cx, cy, r: r - 5, class: 'moto-face' }));
 
-    // Tick-ууд
+    // Ticks
     const steps = Math.round((max - min) / minor);
     for (let i = 0; i <= steps; i++) {
         const v = min + i * minor;
@@ -911,7 +911,7 @@ function buildMotoGauge(g, cfg) {
         g.appendChild(t);
     };
 
-    // Тоон шошго
+    // Number labels
     if (cfg.lbl) {
         for (let v = min; v <= max + 1e-6; v += cfg.lbl) {
             const f = (v - min) / (max - min);
@@ -919,17 +919,17 @@ function buildMotoGauge(g, cfg) {
             label(lx, ly, String(Math.round(v)), 'moto-num', cfg.fs);
         }
     }
-    // Тогтсон шошго (E / F)
+    // Fixed labels (E / F)
     if (cfg.lblMap) {
         cfg.lblMap.forEach(([f, txt]) => {
             const [lx, ly] = polar(cx, cy, r * cfg.lblR, ds + f * span);
             label(lx, ly, txt, 'moto-num', cfg.fs);
         });
     }
-    // Доод тайлбар (km/h, x1000r/min)
+    // Bottom caption (km/h, x1000r/min)
     if (cfg.cap) label(cx, cy + cfg.capY * r, cfg.cap, 'moto-cap', cfg.small ? 8 : 11);
 
-    // Odometer цонх (зөвхөн speedo)
+    // Odometer window (speedo only)
     if (cfg.odo) {
         const ow = 72, oh = 17, oy = cy + 0.3 * r;
         g.appendChild(svgEl('rect', { x: cx - ow / 2, y: oy, width: ow, height: oh, rx: 2, class: 'moto-odo-box' }));
@@ -938,7 +938,7 @@ function buildMotoGauge(g, cfg) {
         g.appendChild(t);
     }
 
-    // Улаан зүү
+    // Red needle
     const rotor = svgEl('g', {});
     const len = r - (cfg.small ? 8 : 12);
     const w = cfg.small ? 2.6 : 4;
@@ -974,7 +974,7 @@ function updateMoto(d) {
     setMotoNeedle('tach', (d.rpm ?? 0) * 12 / MOTO.tach.max);   // rpm 0..1 -> 0..12k
     setMotoNeedle('fuel', (d.fuel ?? 0) / 100);
 
-    // Заагч гэрлүүд
+    // Indicator lights
     const left  = document.querySelector('.sp-moto-left');
     const right = document.querySelector('.sp-moto-right');
     const beam  = document.querySelector('.sp-moto-beam');
@@ -982,11 +982,11 @@ function updateMoto(d) {
     if (left)  left.classList.toggle('blink', d.indLeft === true);
     if (right) right.classList.toggle('blink', d.indRight === true);
     if (beam) {
-        // Ойрын гэрэл асахад телл асч, холын гэрэлд тод цэнхэр болно
+        // The telltale lights up with the low beam and turns bright blue on high beam
         beam.classList.toggle('on', d.lights === true || d.highbeam === true);
         beam.classList.toggle('high', d.highbeam === true);
     }
-    if (neut)  neut.classList.toggle('on', kmh < 1);   // зогссон үед N асна
+    if (neut)  neut.classList.toggle('on', kmh < 1);   // N lights up when stopped
 }
 
 // ---- message handler ----
@@ -1001,8 +1001,8 @@ window.addEventListener('message', (e) => {
             break;
         }
 
-        // Дэлгэцийн нягтрал / aspect ratio / safezone — client.lua-аас
-        // (тоглогч GTA-гийн тохиргоог өөрчлөхөд дахин ирнэ)
+        // Screen resolution / aspect ratio / safezone - from client.lua
+        // (arrives again when the player changes GTA's settings)
         case 'screen': {
             const d = msg.data || {};
             if (typeof d.safeZone === 'number') screenInfo.safeZone = d.safeZone;
@@ -1013,8 +1013,8 @@ window.addEventListener('message', (e) => {
             if (typeof d.mmB === 'number') screenInfo.mmB = d.mmB;
             if (typeof d.mmW === 'number') screenInfo.mmW = d.mmW;
             if (typeof d.mmH === 'number') screenInfo.mmH = d.mmH;
-            // Radar аль буланд байгаа нь — CSS нь status кластерыг minimap-ийн
-            // эсрэг тал руу тавихад үүнийг ашиглана.
+            // Which corner the radar is in - CSS uses this to put the status cluster
+            // on the opposite side of the minimap.
             if (d.mmPos) document.body.dataset.mmpos = d.mmPos;
             computeLayout();
             break;
@@ -1047,17 +1047,17 @@ window.addEventListener('message', (e) => {
                 showCircle('stamina', true); setCircle('stamina', d.stamina);
             } else showCircle('stamina', false);
 
-            // Lung capacity (усан доор амьсгалах хугацаа)
+            // Lung capacity (time left to breathe underwater)
             if (d.lung !== undefined && d.lung !== null) {
                 showCircle('lung', true); setCircle('lung', d.lung);
                 document.querySelectorAll('.status-circle[data-key="lung"]')
                     .forEach((e) => e.classList.toggle('low', d.lung <= 25));
             } else showCircle('lung', false);
 
-            // Voice (microphone) — talking үед гэрэлтэнэ, range badge харуулна
+            // Voice (microphone) - lights up while talking, shows the range badge
             const voiceEl = document.querySelector('.status-circle[data-key="voice"]');
             if (voiceEl) {
-                // range (1=ойр, 2=хэвийн, 3=хол) -> fill хувь
+                // range (1=near, 2=normal, 3=far) -> fill percentage
                 const range = d.voiceRange ?? 2;
                 setCircle('voice', (range / 3) * 100);
                 const badge = document.getElementById('voice-range');
@@ -1070,33 +1070,33 @@ window.addEventListener('message', (e) => {
         case 'speedo': {
             const wrap = document.getElementById('speedo');
             if (!msg.data.visible) {
-                if (!editing) wrap.classList.add('is-hidden');  // edit горимд нуухгүй
+                if (!editing) wrap.classList.add('is-hidden');  // do not hide in edit mode
                 break;
             }
             wrap.classList.remove('is-hidden');
 
             const d = msg.data;
 
-            // ---- Хурд (mps -> mph/kmh) ----
+            // ---- Speed (mps -> mph/kmh) ----
             const mps = d.mps ?? 0;
             const speed = Math.floor(useMPH ? mps * 2.236936 : mps * 3.6);
             setAll('.sp-speed', speed);
             setAll('.sp-unit', useMPH ? 'MPH' : 'KMH');
             setAll('.sp-gear', gearLabel(d.gear));
 
-            // ---- Хурдны зураас (машины дээд хурдны хувиар) ----
+            // ---- Speed bar (percentage of the vehicle's top speed) ----
             const pct = Math.max(0, Math.min(100, d.speedPct ?? 0));
             document.querySelectorAll('.sp-speed-bar').forEach((b) => {
                 b.style.width = pct + '%';
             });
 
-            // ---- Түлш ----
+            // ---- Fuel ----
             const fuel = Math.max(0, Math.min(100, Math.round(d.fuel ?? 0)));
             setAll('.sp-fuel', fuel);
             document.querySelectorAll('.sp-stat-fuel')
                 .forEach((e) => e.classList.toggle('low', fuel <= 15));
 
-            // ---- Хөдөлгүүрийн эрүүл мэнд ----
+            // ---- Engine health ----
             const eng = Math.max(0, Math.min(100, Math.round(d.engineHealth ?? 100)));
             setAll('.sp-eng', eng);
             document.querySelectorAll('.sp-stat-eng')
@@ -1107,7 +1107,7 @@ window.addEventListener('message', (e) => {
         case 'info': {
             const d = msg.data;
 
-            // Компасс / гудамжны мэдээлэл
+            // Compass / street info
             if (d.onlyCompass) {
                 const street = document.getElementById('street');
                 if (d.dir !== undefined && d.dir !== null) {
@@ -1123,13 +1123,13 @@ window.addEventListener('message', (e) => {
                 break;
             }
 
-            // Цаг / job / мөнгө
+            // Time / job / money
             if (d.id !== undefined && d.id !== null) {
                 document.getElementById('info-id').textContent = '#' + d.id;
             }
             document.getElementById('info-time').textContent = d.time ?? '00:00';
             document.getElementById('info-job').textContent = d.job ?? '';
-            // Ажлын цол (grade) — тусдаа chip
+            // Job grade - separate chip
             const gradeEl = document.getElementById('info-grade');
             if (gradeEl) {
                 gradeEl.textContent = d.grade ?? '';
@@ -1147,7 +1147,7 @@ window.addEventListener('message', (e) => {
 
         case 'show': {
             document.body.style.display = '';
-            // Нуугдсан үед хэмжилт хийх боломжгүй тул харагдмагц дахин тааруулна
+            // Measuring is impossible while hidden, so re-fit as soon as it is shown
             requestAnimationFrame(computeLayout);
             break;
         }

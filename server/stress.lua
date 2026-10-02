@@ -1,20 +1,20 @@
 local Config = require 'config'
 
 -- ============================================================
---  Toxic HUD — STRESS СИСТЕМ (server)
+--  Toxic HUD - STRESS SYSTEM (server)
 --
---  Хадгалалт:
---    1) qbx_core metadata.stress  — тоглогчтой хамт DB-д үлдэнэ
---    2) Player(src).state.stress  — statebag, бусад resource уншина
---       (envi-bridge/qbox, jg-stress-addon зэрэг үүнийг сонсдог)
+--  Storage:
+--    1) qbx_core metadata.stress  - persists in the DB with the player
+--    2) Player(src).state.stress  - statebag, read by other resources
+--       (envi-bridge/qbox, jg-stress-addon etc. listen to this)
 --
---  HUD руу 'hud:client:UpdateStress' эвентээр мэдэгдэнэ — bridge.lua
---  аль хэдийн үүнийг сонсдог тул нэмэлт холболт шаардахгүй. Энэ нь
---  qb/qbx экосистемийн стандарт эвент учир бусад script-ийн
---  бичсэн stress ч HUD дээр зөв харагдана.
+--  The HUD is notified through the 'hud:client:UpdateStress' event -
+--  bridge.lua already listens to it, so no extra wiring is needed. It is
+--  the standard qb/qbx ecosystem event, so stress written by other
+--  scripts also shows up correctly on the HUD.
 --
---  ЖОЛООДЛОГООС STRESS ӨГӨХГҮЙ — эх үүсвэрүүд client/stress.lua
---  дотор бөгөөд тэнд хурд / мөргөлт огт хамаарахгүй.
+--  DRIVING GIVES NO STRESS - the sources live in client/stress.lua and
+--  speed / collisions are not involved there.
 -- ============================================================
 
 local qbx = GetResourceState('qbx_core') == 'started'
@@ -26,14 +26,14 @@ local function clamp(v)
     return v
 end
 
----Одоогийн stress-ийг буцаана (0-100)
+---Returns the current stress (0-100)
 ---
----ЧУХАЛ: statebag нь ҮНЭНИЙ ЭХ СУРВАЛЖ. Энэ серверийн бусад script
----(qbx_consumables — хоол/архи, p_ambulancejob — сэргээхэд тэглэх,
----envi-bridge) бүгд Player(src).state.stress дээр ШУУД бичдэг бөгөөд
----metadata-г хөнддөггүй. Metadata-г эхэнд уншвал тэдний өөрчлөлтийг
----дарж бичих байсан. Metadata нь зөвхөн сессийн хооронд хадгалах
----зориулалттай (statebag сервер унтрахад алга болдог).
+---IMPORTANT: the statebag is the SOURCE OF TRUTH. Other scripts on this
+---server (qbx_consumables - food / alcohol, p_ambulancejob - reset on
+---revive, envi-bridge) all write Player(src).state.stress DIRECTLY and do
+---not touch the metadata. Reading metadata first would overwrite their
+---changes. Metadata is only for persistence between sessions (the
+---statebag disappears when the server restarts).
 ---@param src number
 ---@return number
 local function getStress(src)
@@ -49,7 +49,7 @@ local function getStress(src)
     return 0.0
 end
 
----Stress-ийг шууд утгаар тавина
+---Sets stress to an exact value
 ---@param src number
 ---@param value number
 local function setStress(src, value)
@@ -60,10 +60,10 @@ local function setStress(src, value)
         if player then player.Functions.SetMetaData('stress', value) end
     end
 
-    -- statebag (3 дахь параметр = replicated, клиент талд уншигдана)
+    -- statebag (3rd parameter = replicated, readable on the client)
     Player(src).state:set('stress', value, true)
 
-    -- HUD + бусад qb/qbx нийцтэй script-үүд
+    -- HUD + other qb/qbx compatible scripts
     TriggerClientEvent('hud:client:UpdateStress', src, value)
     return value
 end
@@ -80,13 +80,13 @@ local function relieveStress(src, amount)
     return setStress(src, getStress(src) - amount)
 end
 
--- ---- Экспорт (бусад resource-д) ----
+-- ---- Exports (for other resources) ----
 exports('GetStress',     function(src) return getStress(src) end)
 exports('SetStress',     function(src, v) return setStress(src, v) end)
 exports('AddStress',     function(src, v) return addStress(src, v) end)
 exports('RelieveStress', function(src, v) return relieveStress(src, v) end)
 
--- ---- Эвентүүд ----
+-- ---- Events ----
 RegisterNetEvent('toxic_hud:server:addStress', function(amount)
     addStress(source, amount)
 end)
@@ -95,8 +95,8 @@ RegisterNetEvent('toxic_hud:server:relieveStress', function(amount)
     relieveStress(source, amount)
 end)
 
--- qb-hud экосистемийн стандарт эвентүүд. lusty94_smoking зэрэг олон
--- script эдгээрийг дууддаг тул нийцтэй байлгав.
+-- Standard qb-hud ecosystem events. Many scripts such as lusty94_smoking
+-- call these, so we stay compatible.
 RegisterNetEvent('hud:server:GainStress', function(amount)
     addStress(source, amount)
 end)
@@ -105,8 +105,8 @@ RegisterNetEvent('hud:server:RelieveStress', function(amount)
     relieveStress(source, amount)
 end)
 
--- ---- Байгалийн бууралт ----
--- Тоглогч юу ч хийхгүй байхад stress аажим тэглэгдэнэ.
+-- ---- Natural decay ----
+-- Stress slowly drops to zero while the player does nothing.
 if Config.Stress and Config.Stress.enabled then
     CreateThread(function()
         local interval = math.max(5, Config.Stress.decayInterval or 60)
@@ -126,36 +126,37 @@ if Config.Stress and Config.Stress.enabled then
     end)
 end
 
--- Тоглогч ороход statebag-ийг metadata-аас сэргээнэ (statebag нь
--- сессийн хооронд хадгалагддаггүй).
--- qbx_core үүнийг server талаас TriggerEvent('QBCore:Server:PlayerLoaded', self)
--- гэж дууддаг тул `source` нь тоглогчийн ID биш ('' байдаг) — тоглогчийн
--- ID-г дамжуулсан Player объектоос авна. Server-local эвент тул
--- RegisterNetEvent биш AddEventHandler (клиент хуурамчаар дуудаж чадахгүй).
+-- When a player joins, restore the statebag from metadata (the statebag
+-- does not persist between sessions).
+-- qbx_core calls this from the server side as
+-- TriggerEvent('QBCore:Server:PlayerLoaded', self), so `source` is not the
+-- player ID (it is '') - we take the ID from the Player object that is
+-- passed in. It is a server-local event, so AddEventHandler rather than
+-- RegisterNetEvent (a client cannot fake-trigger it).
 AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
     local src = tonumber(player and player.PlayerData and player.PlayerData.source)
     if not src or src <= 0 then return end
     SetTimeout(1000, function()
-        if not GetPlayerName(src) then return end -- 1 секундэд гарчихсан байж болно
+        if not GetPlayerName(src) then return end -- they may have left within 1 second
         setStress(src, getStress(src))
     end)
 end)
 
 -- ============================================================
---  p_ambulancejob — АЛБАН ЁСНЫ гэмтлийн hook
+--  p_ambulancejob - OFFICIAL injury hook
 --
 --  Docs: piotreq-scripts.gitbook.io/.../ambulance-job-v2/api/server-side
 --    RegisterNetEvent('p_ambulancejob/onDeathStateChange')
---    параметр: deathType (string), deathData (table)
+--    parameters: deathType (string), deathData (table)
 --    deathType: 'death' | 'bleeding' | 'recovering' | 'none'
 --
---  Клиентийн амь хянах таамаглалаас ялгаатай нь энэ нь албан ёсны,
---  server талын дохио тул найдвартай. 'recovering' / 'none' үед
---  stress нэмэхгүй (эдгэж байгаа үе).
+--  Unlike guessing from client-side health, this is an official,
+--  server-side signal, so it is reliable. No stress is added for
+--  'recovering' / 'none' (the healing phase).
 --
---  Тайлбар: p_ambulancejob нь тоглогчийг СЭРГЭЭХЭД stress-ийг өөрөө
---  0 болгодог (shared/config.lua дотор state:set('stress', 0)). Бидний
---  систем statebag-ийг эх сурвалж болгон уншдаг тул түүнийг дагана.
+--  Note: p_ambulancejob sets stress to 0 itself when REVIVING a player
+--  (state:set('stress', 0) in shared/config.lua). Our system reads the
+--  statebag as the source of truth, so it follows that.
 -- ============================================================
 
 local D = Config.Stress and Config.Stress.gain and Config.Stress.gain.downed

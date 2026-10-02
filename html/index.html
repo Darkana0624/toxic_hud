@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- ============ STATUS FRAME (minimap-ийг тойрсон бар) ============ -->
+    <!-- ============ STATUS FRAME (bars around the minimap) ============ -->
     <div id="status-frame" class="status-frame">
         <div class="status-circle sf-bar sf-top" data-key="stamina">
             <div class="bar-track"><div class="bar-fill"></div></div>
@@ -29,19 +29,19 @@
     </div>
 
     <!-- ============ MINIMAP GHOST ============
-         Зөвхөн "Байрлал засах" горимд харагдана. Minimap бол тоглоомын
-         элемент болохоор NUI дотор чирэх боломжгүй; оронд нь түүний
-         тэгш өнцөгтийг төлөөлсөн энэ хайрцгийг чирнэ. Тавьсан газрыг
-         client.lua нь SetMinimapComponentPosition руу хөрвүүлж бодит
-         radar-ыг тэнд зөөнө. -->
+         Only visible in "Edit layout" mode. The minimap is a game
+         element, so it cannot be dragged inside the NUI; instead its
+         rectangle is represented by this box, which is dragged. client.lua converts
+         the drop position via SetMinimapComponentPosition and moves the real
+         radar there. -->
     <div id="mmghost" class="mm-ghost" data-movable>
         <span data-i18n="minimapLabel">MINIMAP</span>
     </div>
 
-    <!-- ============ STATUS (зүүн доод) — pill загвар ============ -->
+    <!-- ============ STATUS (bottom left) - pill style ============ -->
     <div id="status" class="status-wrap">
-        <!-- Микрофон — Toxic HUD-аас портлосон дөрвөлжин хүрээ.
-             Ярих үед хүрээ ба дүрс Toxic HUD-ийн үндсэн өнгө (--accent) болно. -->
+        <!-- Microphone - square frame ported from Toxic HUD.
+                  While talking the frame and icon take Toxic HUD's main color (--accent). -->
         <div class="status-circle voice" data-key="voice" id="sc-voice" data-movable>
             <svg class="voice-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="2" width="6" height="11" rx="3"/>
@@ -59,13 +59,13 @@
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2.5 2.5 0 0 0 5 0V3"/><path d="M8.5 10v11"/><path d="M17.5 3c-1.4 0-2.5 2.2-2.5 5s1.1 4 2.5 4V3z"/><path d="M17.5 12v9"/></svg><span>HUNGER</span></div>
         </div>
-        <!-- Stamina — hunger / thirst-тэй яг ижил жижиг pill -->
+        <!-- Stamina - small pill identical to hunger / thirst -->
         <div class="status-circle pill mini" data-key="stamina" id="sc-stamina" data-movable style="display:none">
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg><span>STAMINA</span></div>
         </div>
-        <!-- Lung capacity — усан доор амьсгалах хугацаа. Зөвхөн усан дор
-             (эсвэл уушиг сэргэж дуустал) харагдана. -->
+        <!-- Lung capacity - time left to breathe underwater. Only visible underwater
+                  (or until the lungs have recovered). -->
         <div class="status-circle pill mini" data-key="lung" id="sc-lung" data-movable style="display:none">
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="15" r="4.5"/><circle cx="16.5" cy="7.5" r="2.5"/><circle cx="17" cy="16.5" r="1.5"/></svg><span>LUNG</span></div>
@@ -81,9 +81,9 @@
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.3 6 10a6 6 0 0 1-12 0c0-3.7 6-10 6-10z"/></svg><span>THIRST</span></div>
         </div>
-        <!-- Stress — hunger / thirst / stamina-тай ижил жижиг pill.
-             Утгыг toxic_hud-ийн stress систем (client/stress.lua +
-             server/stress.lua) удирдана. -->
+        <!-- Stress - small pill identical to hunger / thirst / stamina.
+                  The value is driven by toxic_hud's stress system (client/stress.lua +
+                  server/stress.lua). -->
         <div class="status-circle pill mini" data-key="stress" id="sc-stress" data-movable style="display:none">
             <div class="bar-track"><div class="bar-fill"></div></div>
             <div class="pill-face on-track"><svg class="pill-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5a2.5 2.5 0 0 0-2.5 2.5v.6A3 3 0 0 0 5 8.4a3 3 0 0 0 .5 1.7A3 3 0 0 0 5 14a3 3 0 0 0 2 2.8v1a2.5 2.5 0 0 0 5 0V5a2.5 2.5 0 0 0-2.5-2.5z"/><path d="M14.5 2.5A2.5 2.5 0 0 1 17 5v.6a3 3 0 0 1 2 2.8 3 3 0 0 1-.5 1.7A3 3 0 0 1 19 14a3 3 0 0 1-2 2.8v1a2.5 2.5 0 0 1-5 0"/></svg><span>STRESS</span></div>
@@ -91,7 +91,7 @@
         </div>
     </div>
 
-    <!-- ============ INFO КАРТ (зүүн дээд) ============ -->
+    <!-- ============ INFO CARD (top left) ============ -->
     <div id="info" class="info-wrap" data-movable>
         <div class="info-row">
             <div class="info-chip"><span class="dot"></span><span id="info-id">#1</span></div>
@@ -109,7 +109,7 @@
         </div>
     </div>
 
-    <!-- ============ STREET / COMPASS (дээд гол) ============ -->
+    <!-- ============ STREET / COMPASS (top center) ============ -->
     <div id="street" class="street-wrap" data-movable>
         <div class="street-side left" id="street-left">—</div>
         <div class="street-center">
@@ -122,17 +122,17 @@
         <div class="street-side right" id="street-right">—</div>
     </div>
 
-    <!-- ============ SPEEDOMETER (баруун доод) ============ -->
-    <!-- ============ VEHICLE HUD (баруун доод) ============
-         Toxic HUD-ийн машины карт. Өмнө нь 7 тусдаа загвар (petrol /
-         diesel / ev / bike / moto / heli / air) байсан бөгөөд тэдгээрийн
-         дотор ENG зураас absolute байрлалтай давхарлаж байв. Бүгдийг нь
-         нэг энгийн картаар орлуулав: хурд + нэгж + араа, хурдны зураас,
-         түлш / хөдөлгүүрийн хувь.
+    <!-- ============ SPEEDOMETER (bottom right) ============ -->
+    <!-- ============ VEHICLE HUD (bottom right) ============
+              Toxic HUD's vehicle card. Previously there were 7 separate styles (petrol /
+              diesel / ev / bike / moto / heli / air), inside which the ENG bar was
+              absolutely positioned and overlapped. All of them are replaced by
+              one simple card: speed + unit + gear, speed bar,
+              fuel / engine percentage.
 
-         Класс нэрс (.sp-speed / .sp-unit / .sp-gear / .sp-fuel) нь
-         хуучин hook-уудтай ижил тул script.js-ийн setAll() хэвээр
-         ажиллана. -->
+              The class names (.sp-speed / .sp-unit / .sp-gear / .sp-fuel) are the same as
+              the old hooks, so script.js's setAll() keeps
+              working. -->
     <div id="speedo" class="speedo-wrap is-hidden" data-movable data-style="toxic">
         <div class="sp sp-toxic">
             <div class="speed-row">
@@ -160,7 +160,7 @@
         <!-- ===== Settings panel ===== -->
         <div class="editor-panel" id="settings-panel">
             <div class="editor-logo">TOXIC<span>HUD</span></div>
-            <div class="editor-title" data-i18n="title">Тохиргоо</div>
+            <div class="editor-title" data-i18n="title">Settings</div>
 
             <div class="setting-group">
                 <div class="setting-label" data-i18n="statusLayout">Status HUD</div>
@@ -171,7 +171,7 @@
             </div>
 
             <div class="setting-group">
-                <div class="setting-label" data-i18n="speedUnit">Хурдны нэгж</div>
+                <div class="setting-label" data-i18n="speedUnit">Speed unit</div>
                 <div class="seg" id="unit-seg">
                     <button data-unit="mph">MPH</button>
                     <button data-unit="kmh">KMH</button>
@@ -179,16 +179,16 @@
             </div>
 
             <div class="setting-group">
-                <div class="setting-label" data-i18n="hudSize">HUD хэмжээ</div>
+                <div class="setting-label" data-i18n="hudSize">HUD size</div>
                 <div class="scale-row">
                     <input type="range" id="scale-range" min="0.7" max="1.5" step="0.05" value="1">
                     <span class="scale-val" id="scale-val">100%</span>
-                    <button class="scale-reset" id="scale-reset" data-i18n="hudAuto" title="Auto">Авто</button>
+                    <button class="scale-reset" id="scale-reset" data-i18n="hudAuto" title="Auto">Auto</button>
                 </div>
             </div>
 
             <div class="setting-group">
-                <div class="setting-label" data-i18n="language">Хэл</div>
+                <div class="setting-label" data-i18n="language">Language</div>
                 <div class="lang-seg" id="lang-seg">
                     <button data-lang="en">English</button>
                     <button data-lang="ru">Русский</button>
@@ -200,17 +200,17 @@
             </div>
 
             <div class="editor-buttons">
-                <button id="btn-move" class="editor-btn" data-i18n="editPos">⤢ Байрлал засах</button>
+                <button id="btn-move" class="editor-btn" data-i18n="editPos">⤢ Edit layout</button>
                 <button id="editor-reset" class="editor-btn" data-i18n="reset">↺ Reset</button>
-                <button id="editor-close" class="editor-btn primary" data-i18n="close">✓ Хаах</button>
+                <button id="editor-close" class="editor-btn primary" data-i18n="close">✓ Close</button>
             </div>
-            <div class="editor-foot" data-i18n="escClose">ESC дарж хаана</div>
+            <div class="editor-foot" data-i18n="escClose">Press ESC to close</div>
         </div>
 
         <!-- ===== Drag mode bar ===== -->
         <div class="drag-bar" id="drag-bar">
-            <span data-i18n="dragHint">Элементүүдийг хулганаар <b>чирж</b> байрлуул</span>
-            <button id="drag-done" class="editor-btn primary" data-i18n="dragDone">✓ Дуусгах</button>
+            <span data-i18n="dragHint">Drag elements with your <b>mouse</b></span>
+            <button id="drag-done" class="editor-btn primary" data-i18n="dragDone">✓ Done</button>
         </div>
     </div>
 
