@@ -277,6 +277,20 @@ for _, name in ipairs(Config.DieselVehicles or {}) do
     dieselHashes[GetHashKey(name)] = true
 end
 
+-- Seatbelt state. With the JVI integration (Config.JVI.enabled) it comes from
+-- JamzVehicleImmersion's IsSeatbeltOn() export; otherwise (or if the export is
+-- unavailable) from the LocalPlayer.state.seatbelt statebag.
+local function getSeatbelt()
+    local jvi = Config.JVI
+    if jvi and jvi.enabled and GetResourceState(jvi.resource) == 'started' then
+        local ok, buckled = pcall(function() return exports[jvi.resource]:IsSeatbeltOn() end)
+        if ok then return buckled == true end
+    end
+    return LocalPlayer.state.seatbelt or false
+end
+
+exports('isSeatbeltOn', getSeatbelt)
+
 -- Automatic speedo style matching the vehicle (or nil)
 local function autoStyleFor(veh)
     if not Config.AutoSpeedoStyle then return nil end
@@ -320,7 +334,7 @@ CreateThread(function()
                 local gear    = GetVehicleCurrentGear(veh)
                 local fuel    = getFuel(veh)
                 local engineOn = GetIsVehicleEngineRunning(veh)
-                local seatbelt = LocalPlayer.state.seatbelt or false
+                local seatbelt = getSeatbelt()
                 local style   = autoStyleFor(veh)
 
                 -- Speed bar: percentage relative to the vehicle's real top speed

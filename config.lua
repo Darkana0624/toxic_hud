@@ -123,6 +123,18 @@ Config.DieselVehicles = {
     'RYGBus',
 }
 
+-- ============================================================
+--  Jamz Vehicle Immersion (JVI) integration
+--  When enabled and the resource is started, the HUD's seatbelt state is read
+--  from JVI's client export `IsSeatbeltOn()` instead of the
+--  LocalPlayer.state.seatbelt statebag. Set enabled = false to turn the
+--  integration off (the statebag is used again).
+-- ============================================================
+Config.JVI = {
+    enabled  = true,
+    resource = 'JamzVehicleImmersion',   -- folder / resource name of JVI
+}
+
 -- Show street name / speed limit
 Config.ShowStreetInfo = true
 
